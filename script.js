@@ -23,7 +23,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentBtcPrice = null;
     let analysisResults = null;
     let autoRefreshInterval = null;
+    let countdownInterval = null;
+    let nextRefreshTime = null;
     let refreshing = false;
+    let lastRefreshTime = null;
+    const MANUAL_REFRESH_COOLDOWN = 60000; // 1 minute cooldown for manual refresh
     
     // Check for saved theme preference and apply it
     function applyTheme() {
@@ -716,6 +720,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (includeTime) {
             options.hour = '2-digit';
             options.minute = '2-digit';
+            options.second = '2-digit';
             options.hour12 = true;
         }
         
@@ -757,10 +762,35 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Manual refresh button
     manualRefreshBtn.addEventListener('click', function() {
-        if (!refreshing && currentBtcPrice && analysisResults) {
+        const now = Date.now();
+        if (!refreshing && currentBtcPrice && analysisResults && (!lastRefreshTime || now - lastRefreshTime >= MANUAL_REFRESH_COOLDOWN)) {
             refreshBitcoinPrice();
         }
     });
+    
+    // Function to update the manual refresh button state
+    function updateManualRefreshButton() {
+        if (!lastRefreshTime) {
+            manualRefreshBtn.disabled = false;
+            manualRefreshBtn.title = "Refresh price data";
+            return;
+        }
+        
+        const now = Date.now();
+        const timeSinceLastRefresh = now - lastRefreshTime;
+        
+        if (timeSinceLastRefresh < MANUAL_REFRESH_COOLDOWN) {
+            const secondsRemaining = Math.ceil((MANUAL_REFRESH_COOLDOWN - timeSinceLastRefresh) / 1000);
+            manualRefreshBtn.disabled = true;
+            manualRefreshBtn.title = `Please wait ${secondsRemaining} seconds before refreshing again`;
+        } else {
+            manualRefreshBtn.disabled = false;
+            manualRefreshBtn.title = "Refresh price data";
+        }
+    }
+    
+    // Update button state every second
+    setInterval(updateManualRefreshButton, 1000);
     
     // Auto-refresh toggle
     autoRefreshToggle.addEventListener('change', function() {
@@ -773,8 +803,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function startAutoRefresh() {
         if (!autoRefreshInterval) {
-            refreshIntervalDisplay.textContent = `Every ${REFRESH_INTERVAL/1000} seconds`;
+            // Set next refresh time
+            nextRefreshTime = Date.now() + REFRESH_INTERVAL;
+            
+            // Start the main refresh interval
             autoRefreshInterval = setInterval(refreshBitcoinPrice, REFRESH_INTERVAL);
+            
+            // Start the countdown display
+            updateCountdownDisplay();
+            countdownInterval = setInterval(updateCountdownDisplay, 1000);
             
             // Also refresh immediately when turned on
             if (currentBtcPrice && analysisResults) {
@@ -787,8 +824,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (autoRefreshInterval) {
             clearInterval(autoRefreshInterval);
             autoRefreshInterval = null;
+            
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            
             refreshIntervalDisplay.textContent = '';
         }
+    }
+    
+    function updateCountdownDisplay() {
+        if (!nextRefreshTime) return;
+        
+        const now = Date.now();
+        const timeLeft = Math.max(0, nextRefreshTime - now);
+        
+        if (timeLeft === 0) {
+            // Reset for next interval
+            nextRefreshTime = Date.now() + REFRESH_INTERVAL;
+        }
+        
+        const seconds = Math.floor(timeLeft / 1000);
+        refreshIntervalDisplay.textContent = `Next refresh in ${seconds}s`;
     }
     
     async function refreshBitcoinPrice() {
@@ -815,6 +873,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Update the UI with the refreshed data
             renderResults(analysisResults, currentBtcPrice);
+            
+            // Reset the countdown timer if auto-refresh is enabled
+            if (autoRefreshInterval) {
+                nextRefreshTime = Date.now() + REFRESH_INTERVAL;
+            }
+            
+            // Update the last refresh time
+            lastRefreshTime = Date.now();
+            updateManualRefreshButton();
             
         } catch (error) {
             console.error('Price refresh error:', error);
