@@ -21,7 +21,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     # Try ports in sequence until one works
-    ports_to_try = [8000, 8080, 9000, 8888]
+    ports_to_try = [3000, 3001, 3002, 3003, 5000, 5001]
     
     for PORT in ports_to_try:
         try:

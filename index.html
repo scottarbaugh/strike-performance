@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strike BTC Performance Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
@@ -50,9 +58,10 @@
                     </button>
                 </div>
                 <div class="mt-4">
-                    <button id="analyze-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded font-medium transition-colors w-full">
-                        Analyze Performance
-                    </button>
+                    <div class="flex items-center">
+                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"></div>
+                        <span class="text-gray-600 dark:text-gray-400">Analyzing data...</span>
+                    </div>
                 </div>
             </div>
         </div>

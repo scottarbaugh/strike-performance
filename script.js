@@ -20,18 +20,28 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentBtcPrice = null;
     let analysisResults = null;
     
-    // Check for saved theme preference
-    if (localStorage.getItem('theme') === 'dark' || 
-        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-    } else {
-        document.documentElement.classList.remove('dark');
+    // Check for saved theme preference and apply it
+    function applyTheme() {
+        if (localStorage.getItem('theme') === 'dark' || 
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
     }
+    
+    // Apply theme on page load
+    applyTheme();
     
     // Theme toggle functionality
     themeToggle.addEventListener('click', () => {
-        document.documentElement.classList.toggle('dark');
-        localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
     });
     
     // File Upload Event Listeners
@@ -48,27 +58,31 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         dropArea.classList.remove('active');
         handleFiles(e.dataTransfer.files);
+        // Start analysis immediately after file is dropped
+        if (currentFile) {
+            analyzeData();
+        }
     });
     
+    // Only trigger file input when clicking on drop area but not on its child elements
     dropArea.addEventListener('click', (e) => {
-        // Prevent click handler when clicking on buttons inside the drop area
-        if (e.target === dropArea || e.target.tagName !== 'BUTTON') {
+        // Only trigger if the click is directly on the drop area itself,
+        // not on any of its children
+        if (e.target === dropArea) {
             fileInput.click();
         }
     });
     
     fileInput.addEventListener('change', () => {
         handleFiles(fileInput.files);
+        // Start analysis immediately after file is selected
+        if (currentFile) {
+            analyzeData();
+        }
     });
     
     removeFileBtn.addEventListener('click', () => {
         resetFileUpload();
-    });
-    
-    analyzeBtn.addEventListener('click', () => {
-        if (currentFile) {
-            analyzeData();
-        }
     });
     
     // No sample data button
