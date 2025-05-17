@@ -1014,10 +1014,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Ensure we always show the correct time left (up to full REFRESH_INTERVAL)
                 const displaySeconds = Math.min(secondsToNextRefresh, Math.floor(REFRESH_INTERVAL / 1000));
                 
-                manualRefreshBtn.title = `Auto-refresh in ${displaySeconds}s`;
+                manualRefreshBtn.title = `Auto and manual refreshing is limited to once every two minutes. Auto-refresh in ${displaySeconds}s`;
                 manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> ${displaySeconds}s`;
             } else {
-                manualRefreshBtn.title = "Auto-refresh is enabled";
+                manualRefreshBtn.title = "Auto and manual refreshing is limited to once every two minutes. Auto-refresh is enabled";
                 manualRefreshBtn.innerHTML = '<i class="fas fa-clock mr-1"></i> Auto';
             }
             return;
@@ -1026,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // For manual refresh mode
         if (!lastRefreshTime) {
             manualRefreshBtn.disabled = false;
-            manualRefreshBtn.title = "Refresh price data";
+            manualRefreshBtn.title = "Auto and manual refreshing is limited to once every two minutes.";
             manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
             return;
         }
@@ -1041,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', function() {
             manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> ${secondsRemaining}s`;
         } else {
             manualRefreshBtn.disabled = false;
-            manualRefreshBtn.title = "Refresh price data";
+            manualRefreshBtn.title = "Auto and manual refreshing is limited to once every two minutes.";
             manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
         }
     }
@@ -1126,8 +1126,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function startAutoRefresh() {
         if (!autoRefreshInterval) {
-            // Set next refresh time consistently to 120s
-            nextRefreshTime = Date.now() + REFRESH_INTERVAL;
+            // If there's already a manual countdown in progress, use that instead of resetting
+            const now = Date.now();
+            if (!lastRefreshTime || now - lastRefreshTime >= MANUAL_REFRESH_COOLDOWN) {
+                // No manual countdown in progress, set to full interval
+                nextRefreshTime = now + REFRESH_INTERVAL;
+            } else {
+                // There's a manual countdown in progress, calculate remaining time
+                const remainingCooldown = MANUAL_REFRESH_COOLDOWN - (now - lastRefreshTime);
+                nextRefreshTime = now + remainingCooldown;
+            }
             
             // Start the main refresh interval - ensure it's exactly REFRESH_INTERVAL
             autoRefreshInterval = setInterval(refreshBitcoinPrice, REFRESH_INTERVAL);
@@ -1196,14 +1204,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update the UI with the refreshed data
             renderResults(analysisResults, currentBtcPrice);
             
-            // Reset the countdown timer if auto-refresh is enabled
-            if (autoRefreshInterval) {
-                // Always set to exactly REFRESH_INTERVAL to ensure consistency
-                nextRefreshTime = Date.now() + REFRESH_INTERVAL;
-            }
+            // Reset the countdown timer for both manual and auto refresh
+            const now = Date.now();
+            // Always set to exactly REFRESH_INTERVAL to ensure consistency
+            nextRefreshTime = now + REFRESH_INTERVAL;
             
             // Update the last refresh time
-            lastRefreshTime = Date.now();
+            lastRefreshTime = now;
             updateManualRefreshButton();
             
         } catch (error) {
