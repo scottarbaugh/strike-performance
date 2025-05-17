@@ -376,6 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentValue = totalBtc * currentPrice;
         const currentValueWithOnChain = totalBtcWithOnChain * currentPrice;
         
+        // Always calculate profit/loss based on exchange-only transactions, regardless of toggle state
         const totalProfit = currentValue - totalInvested;
         const totalRoi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
         
@@ -530,6 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const totalProfitElement = document.getElementById('total-profit');
         const profitPercentageElement = document.getElementById('profit-percentage');
         
+        // Always show the exchange-only profit/loss, regardless of on-chain toggle
         totalProfitElement.textContent = formatCurrency(results.totalProfit);
         profitPercentageElement.textContent = `(${results.totalRoi.toFixed(2)}%)`;
         
@@ -1214,13 +1216,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update the current value and profit calculations based on the new price
         const totalBtc = analysisResults.totalBtc;
+        const exchangeOnlyBtc = analysisResults.exchangeOnlyBtc;
         const totalInvested = analysisResults.totalInvested;
         
-        // Update the portfolio value
+        // Update the portfolio value - both total and exchange-only
         analysisResults.currentValue = totalBtc * newPrice;
+        analysisResults.exchangeOnlyValue = exchangeOnlyBtc * newPrice;
         
-        // Update profit/loss
-        analysisResults.totalProfit = analysisResults.currentValue - totalInvested;
+        // Update profit/loss - always uses exchange-only transactions
+        analysisResults.totalProfit = analysisResults.exchangeOnlyValue - totalInvested;
         analysisResults.totalRoi = (analysisResults.totalProfit / totalInvested) * 100;
         
         // Update each transaction's current value, profit/loss, and ROI
