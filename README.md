@@ -10,6 +10,7 @@ A modern web application for analyzing the performance of your Bitcoin investmen
 - Visualize purchase history and portfolio value over time
 - Show detailed transaction history with current value and ROI
 - Dark/Light mode toggle
+- Private analysis (all processing happens in your browser)
 
 ## Getting Started
 

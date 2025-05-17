@@ -71,10 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Sample data button
-    document.getElementById('use-sample-data').addEventListener('click', () => {
-        loadSampleData();
-    });
+    // No sample data button
     
     // File handling functions
     function handleFiles(files) {
@@ -730,45 +727,5 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Share results feature will be implemented in a future update.');
     });
     
-    // Load sample data function
-    function loadSampleData() {
-        const sampleCsvData = `Transaction ID,Time (UTC),Status,Transaction Type,Amount,Currency,Fee Amount,Fee Currency,Description,Exchange Rate
-42903793-9aaf-44d0-abd7-b8d561ac3231,2025-05-16 11:00:42,Completed,Exchange,0.0004813,BTC,0,BTC,,103885.31
-196d7282-b6d0-466a-a021-391a2d5f16f6,2025-05-09 11:00:45,Completed,Exchange,0.00048404,BTC,0,BTC,,103297.25
-84d949fc-9350-4590-96e8-abc240ca2de3,2025-05-02 11:00:37,Completed,Exchange,0.00051539,BTC,0,BTC,,97013.91
-c6106235-c20a-4412-bdb1-5b6ab51ffdc6,2025-04-25 11:00:28,Completed,Exchange,0.00053336,BTC,0,BTC,,93745.31
-f0fdba2a-59be-4808-b75a-a8cc37524d74,2025-04-18 11:00:40,Completed,Exchange,0.00059133,BTC,0,BTC,,84555.16
-a834d1f1-4d60-415f-9909-287c8e1ec8fe,2025-04-11 11:00:24,Completed,Exchange,0.00060476,BTC,0,BTC,,82677.43
-f6171079-da79-4d3b-a203-9b31dc6530a1,2025-04-04 11:00:22,Completed,Exchange,0.00060464,BTC,0,BTC,,82693.83
-94926293-fc26-4195-9959-36a9e94c24e5,2025-03-28 11:00:22,Completed,Exchange,0.00058871,BTC,0,BTC,,84931.46
-30dfd750-e685-41c4-bb31-d4e9198de5ab,2025-03-21 11:00:22,Completed,Exchange,0.00059439,BTC,0,BTC,,84119.85
-169730ad-2ccc-4455-9f1f-c2e3594f037b,2025-03-14 11:00:23,Completed,Exchange,0.00060169,BTC,0,BTC,,83099.27
-04434193-007f-43a6-b506-f63900d7a1f8,2025-03-07 11:00:19,Completed,Exchange,0.00056011,BTC,0,BTC,,89268.18
-e388ae3b-f6c1-466b-9f63-0a6aa66218a7,2025-02-28 11:00:28,Completed,Exchange,0.00062512,BTC,0,BTC,,79984.64
-5a820107-735b-45c8-9ad0-6bb620c964b5,2025-02-21 11:00:17,Completed,Exchange,0.00050674,BTC,0,BTC,,98669.93
-1ede3ecf-03fb-406f-b357-0d088eb3123f,2025-02-14 11:00:23,Completed,Exchange,0.00051514,BTC,0,BTC,,97060.99
-04ccaf85-ade3-40b7-b8f2-c0df017de019,2025-02-07 11:00:18,Completed,Exchange,0.00051349,BTC,0,BTC,,97372.88
-ea1b0c4c-a470-4a12-9389-f9a7719f9d7f,2025-01-31 11:00:15,Completed,Exchange,0.00047933,BTC,0,BTC,,104312.27
-a7f26bbc-0a47-4f5d-a3dc-53b8391572d9,2025-01-26 02:51:20,Completed,On-Chain,0.00348545,BTC,0,BTC,,`;
-
-        try {
-            // Create a synthetic file object
-            const sampleFile = new File([sampleCsvData], "BTC-account-statement_2024-12-01_2025-06-01.csv", {
-                type: "text/csv",
-            });
-            
-            // Set current file
-            currentFile = sampleFile;
-            fileName.textContent = sampleFile.name;
-            fileInfo.classList.remove('hidden');
-            
-            // Parse the CSV
-            csvData = parseCSV(sampleCsvData);
-            
-            hideError();
-        } catch (error) {
-            showError('Error loading sample data');
-            console.error(error);
-        }
-    }
+    // No sample data function
 });
