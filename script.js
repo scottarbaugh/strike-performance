@@ -489,11 +489,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const exchangeOnly = results.exchangeOnlyBtc.toFixed(8);
             const onChainOnly = results.onChainBtc.toFixed(8);
             
-            // Create a tooltip with the breakdown
-            totalBtcElement.title = `Exchange: ${exchangeOnly} BTC | On-Chain: ${onChainOnly} BTC`;
-            
-            // Add a visual indicator that on-chain is included
-            totalBtcElement.innerHTML = `${results.totalBtc.toFixed(8)} <span class="text-xs text-blue-500 dark:text-blue-400">*</span>`;
+            // Show the breakdown directly instead of using a tooltip
+            totalBtcElement.innerHTML = `
+                <span class="block">${results.totalBtc.toFixed(8)}</span>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <div>Exchange: ${exchangeOnly}</div>
+                    <div>On-Chain: ${onChainOnly}</div>
+                </div>
+            `;
         }
         
         document.getElementById('total-invested').textContent = formatCurrency(results.totalInvested);
@@ -505,11 +508,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const exchangeOnlyValue = formatCurrency(results.exchangeOnlyValue);
             const onChainValue = formatCurrency(results.currentValue - results.exchangeOnlyValue);
             
-            // Create a tooltip with the breakdown
-            currentValueElement.title = `Exchange: ${exchangeOnlyValue} | On-Chain: ${onChainValue}`;
-            
-            // Add a visual indicator that on-chain is included
-            currentValueElement.innerHTML = `${formatCurrency(results.currentValue)} <span class="text-xs text-blue-500 dark:text-blue-400">*</span>`;
+            // Show the breakdown directly instead of using a tooltip
+            currentValueElement.innerHTML = `
+                <span class="block">${formatCurrency(results.currentValue)}</span>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <div>Exchange: ${exchangeOnlyValue}</div>
+                    <div>On-Chain: ${onChainValue}</div>
+                </div>
+            `;
         }
         
         const totalProfitElement = document.getElementById('total-profit');
