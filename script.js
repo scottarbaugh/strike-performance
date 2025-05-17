@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let refreshing = false;
     let lastRefreshTime = null;
     let includeOnChain = true; // Always include on-chain transactions
-    const MANUAL_REFRESH_COOLDOWN = 120000; // 1 minute cooldown for manual refresh
+    const MANUAL_REFRESH_COOLDOWN = 120000; // 2 minute cooldown for manual refresh
     
     // Check for saved theme preference and apply it
     function applyTheme() {
@@ -1001,6 +1001,29 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to update the manual refresh button state
     function updateManualRefreshButton() {
+        // If auto-refresh is enabled, always disable the manual refresh button
+        if (autoRefreshToggle.checked) {
+            manualRefreshBtn.disabled = true;
+            
+            // Show countdown to next auto-refresh in the button
+            if (nextRefreshTime) {
+                const now = Date.now();
+                const timeToNextRefresh = Math.max(0, nextRefreshTime - now);
+                const secondsToNextRefresh = Math.ceil(timeToNextRefresh / 1000);
+                
+                // Ensure we always show the correct time left (up to full REFRESH_INTERVAL)
+                const displaySeconds = Math.min(secondsToNextRefresh, Math.floor(REFRESH_INTERVAL / 1000));
+                
+                manualRefreshBtn.title = `Auto-refresh in ${displaySeconds}s`;
+                manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> ${displaySeconds}s`;
+            } else {
+                manualRefreshBtn.title = "Auto-refresh is enabled";
+                manualRefreshBtn.innerHTML = '<i class="fas fa-clock mr-1"></i> Auto';
+            }
+            return;
+        }
+        
+        // For manual refresh mode
         if (!lastRefreshTime) {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Refresh price data";
@@ -1020,20 +1043,6 @@ document.addEventListener('DOMContentLoaded', function() {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Refresh price data";
             manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
-        }
-        
-        // If auto-refresh is enabled, also show the countdown to next auto-refresh in the button
-        if (autoRefreshToggle.checked && nextRefreshTime) {
-            const timeToNextRefresh = Math.max(0, nextRefreshTime - now);
-            const secondsToNextRefresh = Math.ceil(timeToNextRefresh / 1000);
-            
-            // Ensure we always show the correct time left (up to full REFRESH_INTERVAL)
-            const displaySeconds = Math.min(secondsToNextRefresh, Math.floor(REFRESH_INTERVAL / 1000));
-            
-            if (!manualRefreshBtn.disabled) {
-                manualRefreshBtn.title = `Auto-refresh in ${displaySeconds}s`;
-                manualRefreshBtn.innerHTML = `<i class="fas fa-sync-alt mr-1"></i> ${displaySeconds}s`;
-            }
         }
     }
     
@@ -1056,8 +1065,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Otherwise just start the timer for the next refresh
                 startAutoRefresh();
             }
+            
+            // Immediately disable manual refresh button when auto-refresh is enabled
+            updateManualRefreshButton();
         } else {
             stopAutoRefresh();
+            // Update button state immediately
+            updateManualRefreshButton();
         }
     });
     
@@ -1112,17 +1126,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function startAutoRefresh() {
         if (!autoRefreshInterval) {
-            // Set next refresh time
+            // Set next refresh time consistently to 120s
             nextRefreshTime = Date.now() + REFRESH_INTERVAL;
             
-            // Start the main refresh interval
+            // Start the main refresh interval - ensure it's exactly REFRESH_INTERVAL
             autoRefreshInterval = setInterval(refreshBitcoinPrice, REFRESH_INTERVAL);
             
             // Start the countdown display
             updateCountdownDisplay();
             countdownInterval = setInterval(updateCountdownDisplay, 1000);
             
-            // Don't refresh immediately - wait for the timer to complete
+            // Update the button state immediately
+            updateManualRefreshButton();
         }
     }
     
@@ -1147,7 +1162,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const timeLeft = Math.max(0, nextRefreshTime - now);
         
         if (timeLeft === 0) {
-            // Reset for next interval
+            // If the timer reached zero, trigger a refresh immediately
+            refreshBitcoinPrice();
+            // Reset for next interval with exact REFRESH_INTERVAL value to ensure consistency
             nextRefreshTime = Date.now() + REFRESH_INTERVAL;
         }
         
@@ -1181,6 +1198,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Reset the countdown timer if auto-refresh is enabled
             if (autoRefreshInterval) {
+                // Always set to exactly REFRESH_INTERVAL to ensure consistency
                 nextRefreshTime = Date.now() + REFRESH_INTERVAL;
             }
             
