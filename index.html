@@ -77,16 +77,34 @@
         <!-- Results Section (Initially Hidden) -->
         <div id="results-section" class="hidden">
             <!-- Current BTC Price Banner -->
-            <div class="bg-blue-600 dark:bg-blue-700 text-white p-4 rounded-lg mb-8 flex justify-between items-center">
-                <div>
-                    <h2 class="text-lg font-semibold">Current Bitcoin Price</h2>
-                    <p class="text-xs opacity-75">Last updated: <span id="price-update-time"></span></p>
+            <div class="bg-blue-600 dark:bg-blue-700 text-white p-4 rounded-lg mb-8">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-semibold">Current Bitcoin Price</h2>
+                        <p class="text-xs opacity-75">Last updated: <span id="price-update-time"></span></p>
+                    </div>
+                    <div class="text-right">
+                        <span id="current-btc-price" class="text-2xl font-bold"></span>
+                        <div class="flex items-center justify-end">
+                            <span id="price-change-24h" class="text-sm"></span>
+                            <i id="price-direction" class="fas ml-1"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-right">
-                    <span id="current-btc-price" class="text-2xl font-bold"></span>
-                    <div class="flex items-center justify-end">
-                        <span id="price-change-24h" class="text-sm"></span>
-                        <i id="price-direction" class="fas ml-1"></i>
+                <div class="flex justify-between items-center mt-4 pt-3 border-t border-blue-500">
+                    <div class="flex items-center space-x-2">
+                        <button id="manual-refresh" class="bg-blue-500 hover:bg-blue-400 text-white px-3 py-1 rounded text-sm flex items-center">
+                            <i class="fas fa-sync-alt mr-1"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="flex items-center">
+                        <label for="auto-refresh-toggle" class="text-sm mr-2">Auto-refresh:</label>
+                        <div class="relative inline-block w-10 align-middle select-none">
+                            <input type="checkbox" id="auto-refresh-toggle" class="sr-only" />
+                            <div class="block bg-gray-400 w-10 h-6 rounded-full"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                        </div>
+                        <span id="refresh-interval" class="text-xs ml-2 opacity-75"></span>
                     </div>
                 </div>
             </div>

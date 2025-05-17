@@ -129,6 +129,29 @@ tbody tr:hover {
   color: #f1f5f9;
 }
 
+/* Toggle switch styles */
+#auto-refresh-toggle:checked + .block {
+  background-color: #3b82f6;
+}
+
+#auto-refresh-toggle:checked ~ .dot {
+  transform: translateX(100%);
+}
+
+.dot {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Refresh button animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   #results-section .grid {

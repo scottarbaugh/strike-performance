@@ -13,12 +13,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorMessageContainer = document.getElementById('error-message');
     const errorText = document.getElementById('error-text');
     const themeToggle = document.getElementById('theme-toggle');
+    const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+    const manualRefreshBtn = document.getElementById('manual-refresh');
+    const refreshIntervalDisplay = document.getElementById('refresh-interval');
     
     // Global variables
     let csvData = null;
     let currentFile = null;
     let currentBtcPrice = null;
     let analysisResults = null;
+    let autoRefreshInterval = null;
+    let refreshing = false;
     
     // Check for saved theme preference and apply it
     function applyTheme() {
@@ -58,10 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         dropArea.classList.remove('active');
         handleFiles(e.dataTransfer.files);
-        // Start analysis immediately after file is dropped
-        if (currentFile) {
-            analyzeData();
-        }
+        // Analysis will be triggered after file is parsed
     });
     
     // Only trigger file input when clicking on drop area but not on its child elements
@@ -75,10 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     fileInput.addEventListener('change', () => {
         handleFiles(fileInput.files);
-        // Start analysis immediately after file is selected
-        if (currentFile) {
-            analyzeData();
-        }
+        // Analysis will be triggered after file is parsed
     });
     
     removeFileBtn.addEventListener('click', () => {
@@ -99,14 +98,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         currentFile = file;
-        fileName.textContent = file.name;
-        fileInfo.classList.remove('hidden');
+        fileInfo.classList.add('hidden'); // Hide file info instead of showing it
         hideError();
         
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 csvData = parseCSV(e.target.result);
+                // Start analysis only after CSV has been successfully parsed
+                analyzeData();
             } catch (error) {
                 showError('Error parsing CSV file. Please check the file format.');
                 console.error(error);
@@ -123,6 +123,12 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInfo.classList.add('hidden');
         currentFile = null;
         csvData = null;
+        
+        // Stop auto-refresh if it's running
+        if (autoRefreshToggle.checked) {
+            autoRefreshToggle.checked = false;
+            stopAutoRefresh();
+        }
     }
     
     // CSV Parser
@@ -378,6 +384,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // UI rendering functions
     function renderResults(results, btcPriceData) {
+        // Ensure loading indicator is hidden
+        loadingIndicator.classList.add('hidden');
+        
         resultsSection.classList.remove('hidden');
         resultsSection.classList.add('fade-in');
         
@@ -741,5 +750,101 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Share results feature will be implemented in a future update.');
     });
     
-    // No sample data function
+    // Refresh functionality
+    
+    // Set the refresh rate based on API limits (CoinGecko has a rate limit)
+    const REFRESH_INTERVAL = 60000; // 60 seconds (conservative to avoid rate limits)
+    
+    // Manual refresh button
+    manualRefreshBtn.addEventListener('click', function() {
+        if (!refreshing && currentBtcPrice && analysisResults) {
+            refreshBitcoinPrice();
+        }
+    });
+    
+    // Auto-refresh toggle
+    autoRefreshToggle.addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+    
+    function startAutoRefresh() {
+        if (!autoRefreshInterval) {
+            refreshIntervalDisplay.textContent = `Every ${REFRESH_INTERVAL/1000} seconds`;
+            autoRefreshInterval = setInterval(refreshBitcoinPrice, REFRESH_INTERVAL);
+            
+            // Also refresh immediately when turned on
+            if (currentBtcPrice && analysisResults) {
+                refreshBitcoinPrice();
+            }
+        }
+    }
+    
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+            refreshIntervalDisplay.textContent = '';
+        }
+    }
+    
+    async function refreshBitcoinPrice() {
+        if (refreshing || !csvData) return;
+        
+        // Indicate refreshing state
+        refreshing = true;
+        const refreshIcon = manualRefreshBtn.querySelector('i');
+        refreshIcon.classList.add('spin-animation');
+        
+        try {
+            // Fetch updated Bitcoin price
+            const updatedPrice = await fetchCurrentBtcPrice();
+            
+            if (!updatedPrice) {
+                throw new Error('Failed to fetch updated Bitcoin price');
+            }
+            
+            // Update the global price data
+            currentBtcPrice = updatedPrice;
+            
+            // Update analysis with new price
+            updateAnalysisWithNewPrice(currentBtcPrice.price);
+            
+            // Update the UI with the refreshed data
+            renderResults(analysisResults, currentBtcPrice);
+            
+        } catch (error) {
+            console.error('Price refresh error:', error);
+            showError('Error refreshing price data: ' + error.message);
+        } finally {
+            // Reset refreshing state
+            refreshing = false;
+            refreshIcon.classList.remove('spin-animation');
+        }
+    }
+    
+    function updateAnalysisWithNewPrice(newPrice) {
+        if (!analysisResults || !csvData) return;
+        
+        // Update the current value and profit calculations based on the new price
+        const totalBtc = analysisResults.totalBtc;
+        const totalInvested = analysisResults.totalInvested;
+        
+        // Update the portfolio value
+        analysisResults.currentValue = totalBtc * newPrice;
+        
+        // Update profit/loss
+        analysisResults.totalProfit = analysisResults.currentValue - totalInvested;
+        analysisResults.totalRoi = (analysisResults.totalProfit / totalInvested) * 100;
+        
+        // Update each transaction's current value, profit/loss, and ROI
+        analysisResults.transactions.forEach(tx => {
+            tx.currentValue = tx.btcAmount * newPrice;
+            tx.profitLoss = tx.currentValue - tx.usdInvested;
+            tx.roi = (tx.profitLoss / tx.usdInvested) * 100;
+        });
+    }
 });
