@@ -986,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Refresh functionality
     
     // Set the refresh rate based on API limits (CoinGecko has a rate limit)
-    const REFRESH_INTERVAL = 60000; // 60 seconds (conservative to avoid rate limits)
+    const REFRESH_INTERVAL = 120000; // 120 seconds (2 minutes) to match API refresh rate
     
     // Manual refresh button
     manualRefreshBtn.addEventListener('click', function() {
@@ -1107,10 +1107,7 @@ document.addEventListener('DOMContentLoaded', function() {
             updateCountdownDisplay();
             countdownInterval = setInterval(updateCountdownDisplay, 1000);
             
-            // Also refresh immediately when turned on
-            if (currentBtcPrice && analysisResults) {
-                refreshBitcoinPrice();
-            }
+            // Don't refresh immediately - wait for the timer to complete
         }
     }
     
