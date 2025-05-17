@@ -209,6 +209,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Scroll to results
             resultsSection.scrollIntoView({ behavior: 'smooth' });
             
+            // Update the last refresh time and disable refresh button
+            lastRefreshTime = Date.now();
+            updateManualRefreshButton();
+            
         } catch (error) {
             showError(error.message);
             console.error(error);
@@ -768,6 +772,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const now = Date.now();
         if (!refreshing && currentBtcPrice && analysisResults && (!lastRefreshTime || now - lastRefreshTime >= MANUAL_REFRESH_COOLDOWN)) {
             refreshBitcoinPrice();
+        } else if (lastRefreshTime && now - lastRefreshTime < MANUAL_REFRESH_COOLDOWN) {
+            const secondsRemaining = Math.ceil((MANUAL_REFRESH_COOLDOWN - (now - lastRefreshTime)) / 1000);
+            manualRefreshBtn.title = `Please wait ${secondsRemaining} seconds before refreshing again`;
         }
     });
     
@@ -776,6 +783,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!lastRefreshTime) {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Refresh price data";
+            manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
             return;
         }
         
@@ -786,9 +794,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const secondsRemaining = Math.ceil((MANUAL_REFRESH_COOLDOWN - timeSinceLastRefresh) / 1000);
             manualRefreshBtn.disabled = true;
             manualRefreshBtn.title = `Please wait ${secondsRemaining} seconds before refreshing again`;
+            manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> Wait ${secondsRemaining}s`;
         } else {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Refresh price data";
+            manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
         }
     }
     

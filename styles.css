@@ -153,8 +153,10 @@ tbody tr:hover {
 
 /* Disabled button styles */
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  background-color: #94a3b8 !important;
+  transition: all 0.3s ease;
 }
 
 /* Refresh button animation */
