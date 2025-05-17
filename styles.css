@@ -130,11 +130,13 @@ tbody tr:hover {
 }
 
 /* Toggle switch styles */
-#auto-refresh-toggle:checked + .block {
+#auto-refresh-toggle:checked + .block,
+#include-onchain-toggle:checked + .block {
   background-color: #3b82f6;
 }
 
-#auto-refresh-toggle:checked ~ .dot {
+#auto-refresh-toggle:checked ~ .dot,
+#include-onchain-toggle:checked ~ .dot {
   transform: translateX(100%);
 }
 

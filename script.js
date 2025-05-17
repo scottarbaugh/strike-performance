@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const manualRefreshBtn = document.getElementById('manual-refresh');
     const refreshIntervalDisplay = document.getElementById('refresh-interval');
+    const includeOnchainToggle = document.getElementById('include-onchain-toggle');
     
     // Global variables
     let csvData = null;
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let nextRefreshTime = null;
     let refreshing = false;
     let lastRefreshTime = null;
+    let includeOnChain = localStorage.getItem('includeOnChain') === 'true'; // Load from localStorage or default to false
     const MANUAL_REFRESH_COOLDOWN = 60000; // 1 minute cooldown for manual refresh
     
     // Check for saved theme preference and apply it
@@ -272,14 +274,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function calculatePerformance(data, currentPrice) {
         // Filter for completed exchange transactions
-        const transactions = data.filter(row => 
+        const exchangeTransactions = data.filter(row => 
             row.Status === 'Completed' && 
             row.Currency === 'BTC' && 
             row['Transaction Type'] === 'Exchange'
         );
         
+        // Filter for completed on-chain transactions
+        const onChainTransactions = data.filter(row => 
+            row.Status === 'Completed' && 
+            row.Currency === 'BTC' && 
+            row['Transaction Type'] === 'On-Chain'
+        );
+        
+        // Combine transactions based on the toggle setting
+        let transactions = exchangeTransactions;
+        if (includeOnChain && onChainTransactions.length > 0) {
+            transactions = [...exchangeTransactions, ...onChainTransactions];
+        }
+        
         if (transactions.length === 0) {
-            throw new Error('No valid Bitcoin exchange transactions found in the provided CSV.');
+            throw new Error('No valid Bitcoin transactions found in the provided CSV.');
         }
         
         // Sort transactions by date (oldest first)
@@ -291,68 +306,108 @@ document.addEventListener('DOMContentLoaded', function() {
         let cumulativeBtc = 0;
         let bestPurchaseRate = 0;
         let bestPurchaseIndex = 0;
+        let onChainBtc = 0; // Track on-chain BTC separately
         
         // Process each transaction
         transactions.forEach((tx, index) => {
             const btcAmount = parseFloat(tx.Amount);
-            const exchangeRate = parseFloat(tx['Exchange Rate']);
-            const usdInvested = btcAmount * exchangeRate;
+            const isOnChain = tx['Transaction Type'] === 'On-Chain';
             
-            totalBtc += btcAmount;
-            totalInvested += usdInvested;
-            cumulativeBtc += btcAmount;
-            
-            // Track best purchase (lowest price)
-            if (index === 0 || exchangeRate < bestPurchaseRate) {
-                bestPurchaseRate = exchangeRate;
-                bestPurchaseIndex = index;
+            if (isOnChain) {
+                // On-chain transactions don't have an exchange rate
+                onChainBtc += btcAmount;
+                cumulativeBtc += btcAmount;
+                
+                // Add to history with special on-chain flag
+                purchaseHistory.push({
+                    date: new Date(tx['Time (UTC)']),
+                    btcAmount,
+                    isOnChain: true,
+                    exchangeRate: 0, // No exchange rate for on-chain
+                    usdInvested: 0, // No USD invested for on-chain
+                    cumulativeBtc,
+                    currentValue: btcAmount * currentPrice,
+                    profitLoss: 0, // Can't calculate profit/loss for on-chain
+                    roi: 0 // Can't calculate ROI for on-chain
+                });
+            } else {
+                // Regular exchange transaction
+                const exchangeRate = parseFloat(tx['Exchange Rate']);
+                const usdInvested = btcAmount * exchangeRate;
+                
+                totalBtc += btcAmount;
+                totalInvested += usdInvested;
+                cumulativeBtc += btcAmount;
+                
+                // Track best purchase (lowest price)
+                if (index === 0 || exchangeRate < bestPurchaseRate) {
+                    bestPurchaseRate = exchangeRate;
+                    bestPurchaseIndex = index;
+                }
+                
+                // Build purchase history for charts
+                purchaseHistory.push({
+                    date: new Date(tx['Time (UTC)']),
+                    btcAmount,
+                    isOnChain: false,
+                    exchangeRate,
+                    usdInvested,
+                    cumulativeBtc,
+                    currentValue: btcAmount * currentPrice,
+                    profitLoss: (btcAmount * currentPrice) - usdInvested,
+                    roi: ((btcAmount * currentPrice) - usdInvested) / usdInvested * 100
+                });
             }
-            
-            // Build purchase history for charts
-            purchaseHistory.push({
-                date: new Date(tx['Time (UTC)']),
-                btcAmount,
-                exchangeRate,
-                usdInvested,
-                cumulativeBtc,
-                currentValue: btcAmount * currentPrice,
-                profitLoss: (btcAmount * currentPrice) - usdInvested,
-                roi: ((btcAmount * currentPrice) - usdInvested) / usdInvested * 100
-            });
         });
+        
+        // Calculate total BTC with or without on-chain
+        const totalBtcWithOnChain = totalBtc + onChainBtc;
         
         // Calculate current portfolio value
         const currentValue = totalBtc * currentPrice;
-        const totalProfit = currentValue - totalInvested;
-        const totalRoi = (totalProfit / totalInvested) * 100;
+        const currentValueWithOnChain = totalBtcWithOnChain * currentPrice;
         
-        // Calculate average purchase price
-        const avgPurchasePrice = totalInvested / totalBtc;
+        const totalProfit = currentValue - totalInvested;
+        const totalRoi = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+        
+        // Calculate average purchase price (only for exchange transactions)
+        const avgPurchasePrice = totalBtc > 0 ? totalInvested / totalBtc : 0;
         
         // Calculate DCA metrics
-        const firstPurchaseDate = transactions[0]['Time (UTC)'];
-        const latestPurchaseDate = transactions[transactions.length - 1]['Time (UTC)'];
-        const avgPurchaseAmount = totalInvested / transactions.length;
+        const firstDate = transactions.length > 0 ? transactions[0]['Time (UTC)'] : '';
+        const latestDate = transactions.length > 0 ? transactions[transactions.length - 1]['Time (UTC)'] : '';
+        const exchangeCount = exchangeTransactions.length;
+        const avgPurchaseAmount = exchangeCount > 0 ? totalInvested / exchangeCount : 0;
         
         // Calculate consistency score (based on regularity of purchases)
-        let consistencyScore = calculateConsistencyScore(transactions);
+        // Only use exchange transactions for consistency score
+        let consistencyScore = calculateConsistencyScore(exchangeTransactions);
         
-        // Calculate DCA vs Lump Sum comparison
-        const lumpSumBtc = totalInvested / parseFloat(transactions[0]['Exchange Rate']);
-        const lumpSumValue = lumpSumBtc * currentPrice;
-        const dcaVsLumpSumPerformance = ((currentValue - lumpSumValue) / lumpSumValue) * 100;
+        // Calculate DCA vs Lump Sum comparison (only if there are exchange transactions)
+        let dcaVsLumpSumPerformance = 0;
+        if (exchangeTransactions.length > 0) {
+            const lumpSumBtc = totalInvested / parseFloat(exchangeTransactions[0]['Exchange Rate']);
+            const lumpSumValue = lumpSumBtc * currentPrice;
+            dcaVsLumpSumPerformance = lumpSumValue > 0 ? ((currentValue - lumpSumValue) / lumpSumValue) * 100 : 0;
+        }
         
         return {
-            totalBtc,
+            totalBtc: totalBtcWithOnChain, // Total including on-chain if enabled
+            exchangeOnlyBtc: totalBtc, // BTC from exchange transactions only
+            onChainBtc, // BTC from on-chain transactions
+            includesOnChain: includeOnChain && onChainTransactions.length > 0,
             totalInvested,
-            currentValue,
+            currentValue: currentValueWithOnChain, // Current value including on-chain if enabled
+            exchangeOnlyValue: currentValue, // Value from exchange transactions only
             totalProfit,
             totalRoi,
             avgPurchasePrice,
-            firstPurchaseDate,
-            latestPurchaseDate,
+            firstPurchaseDate: firstDate,
+            latestPurchaseDate: latestDate,
             transactions: purchaseHistory,
             transactionCount: transactions.length,
+            exchangeTransactionCount: exchangeCount,
+            onChainTransactionCount: onChainTransactions.length,
             avgPurchaseAmount,
             bestPurchaseRate,
             bestPurchaseIndex,
@@ -422,10 +477,40 @@ document.addEventListener('DOMContentLoaded', function() {
             priceDirectionIcon.className = 'fas fa-arrow-down ml-1 loss';
         }
         
+        // Update the on-chain toggle state
+        includeOnchainToggle.checked = results.includesOnChain;
+        
         // Summary cards
         document.getElementById('total-btc').textContent = results.totalBtc.toFixed(8);
+        
+        // If we have on-chain BTC, show a breakdown
+        if (results.onChainBtc > 0 && results.includesOnChain) {
+            const totalBtcElement = document.getElementById('total-btc');
+            const exchangeOnly = results.exchangeOnlyBtc.toFixed(8);
+            const onChainOnly = results.onChainBtc.toFixed(8);
+            
+            // Create a tooltip with the breakdown
+            totalBtcElement.title = `Exchange: ${exchangeOnly} BTC | On-Chain: ${onChainOnly} BTC`;
+            
+            // Add a visual indicator that on-chain is included
+            totalBtcElement.innerHTML = `${results.totalBtc.toFixed(8)} <span class="text-xs text-blue-500 dark:text-blue-400">*</span>`;
+        }
+        
         document.getElementById('total-invested').textContent = formatCurrency(results.totalInvested);
         document.getElementById('current-value').textContent = formatCurrency(results.currentValue);
+        
+        // If we have on-chain BTC, show a breakdown for current value
+        if (results.onChainBtc > 0 && results.includesOnChain) {
+            const currentValueElement = document.getElementById('current-value');
+            const exchangeOnlyValue = formatCurrency(results.exchangeOnlyValue);
+            const onChainValue = formatCurrency(results.currentValue - results.exchangeOnlyValue);
+            
+            // Create a tooltip with the breakdown
+            currentValueElement.title = `Exchange: ${exchangeOnlyValue} | On-Chain: ${onChainValue}`;
+            
+            // Add a visual indicator that on-chain is included
+            currentValueElement.innerHTML = `${formatCurrency(results.currentValue)} <span class="text-xs text-blue-500 dark:text-blue-400">*</span>`;
+        }
         
         const totalProfitElement = document.getElementById('total-profit');
         const profitPercentageElement = document.getElementById('profit-percentage');
@@ -447,7 +532,17 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('first-purchase-date').textContent = formatDate(new Date(results.firstPurchaseDate));
         document.getElementById('latest-purchase-date').textContent = formatDate(new Date(results.latestPurchaseDate));
         
-        document.getElementById('total-purchases').textContent = results.transactionCount;
+        // Show transaction breakdown if we have on-chain transactions
+        if (results.onChainTransactionCount > 0) {
+            const totalLabel = results.includesOnChain ? 
+                `${results.transactionCount} (${results.exchangeTransactionCount} Exchange, ${results.onChainTransactionCount} On-Chain)` :
+                `${results.exchangeTransactionCount} (${results.onChainTransactionCount} On-Chain excluded)`;
+            
+            document.getElementById('total-purchases').textContent = totalLabel;
+        } else {
+            document.getElementById('total-purchases').textContent = results.transactionCount;
+        }
+        
         document.getElementById('avg-purchase-amount').textContent = formatCurrency(results.avgPurchaseAmount);
         document.getElementById('consistency-score').textContent = `${results.consistencyScore}/100`;
         
@@ -471,42 +566,76 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderPurchaseHistoryChart(transactions) {
         const ctx = document.getElementById('purchase-history-chart').getContext('2d');
         
-        // Prepare data for chart
-        const labels = transactions.map(tx => tx.date);
-        const exchangeRates = transactions.map(tx => tx.exchangeRate);
-        const btcAmounts = transactions.map(tx => tx.btcAmount);
+        // Separate exchange and on-chain transactions
+        const exchangeTxs = transactions.filter(tx => !tx.isOnChain);
+        const onChainTxs = transactions.filter(tx => tx.isOnChain);
+        
+        // Exchange transaction data
+        const exchangeLabels = exchangeTxs.map(tx => tx.date);
+        const exchangeRates = exchangeTxs.map(tx => tx.exchangeRate);
+        const exchangeBtcAmounts = exchangeTxs.map(tx => tx.btcAmount);
+        
+        // On-chain transaction data
+        const onChainLabels = onChainTxs.map(tx => tx.date);
+        const onChainBtcAmounts = onChainTxs.map(tx => tx.btcAmount);
         
         // Destroy existing chart if it exists
         if (window.purchaseChart instanceof Chart) {
             window.purchaseChart.destroy();
         }
         
+        // Create datasets
+        const datasets = [
+            {
+                label: 'BTC Price at Purchase (USD)',
+                data: exchangeLabels.map((label, i) => ({
+                    x: label,
+                    y: exchangeRates[i]
+                })),
+                borderColor: 'rgb(59, 130, 246)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                tension: 0.2,
+                yAxisID: 'y'
+            },
+            {
+                label: 'BTC Amount (Exchange)',
+                data: exchangeLabels.map((label, i) => ({
+                    x: label,
+                    y: exchangeBtcAmounts[i]
+                })),
+                borderColor: 'rgb(245, 158, 11)',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                tension: 0.2,
+                yAxisID: 'y1'
+            }
+        ];
+        
+        // Add on-chain transactions dataset if we have any
+        if (onChainTxs.length > 0 && includeOnChain) {
+            datasets.push({
+                label: 'BTC Amount (On-Chain)',
+                data: onChainLabels.map((label, i) => ({
+                    x: label,
+                    y: onChainBtcAmounts[i]
+                })),
+                borderColor: 'rgb(16, 185, 129)', // Green color for on-chain
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 2,
+                pointStyle: 'triangle', // Different point style for on-chain
+                pointRadius: 6,
+                tension: 0.2,
+                yAxisID: 'y1'
+            });
+        }
+        
         // Create new chart
         window.purchaseChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'BTC Price at Purchase (USD)',
-                        data: exchangeRates,
-                        borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.2,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'BTC Amount Purchased',
-                        data: btcAmounts,
-                        borderColor: 'rgb(245, 158, 11)',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        tension: 0.2,
-                        yAxisID: 'y1'
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
@@ -559,12 +688,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (label) {
                                     label += ': ';
                                 }
-                                if (context.datasetIndex === 0) {
-                                    label += formatCurrency(context.raw);
+                                
+                                if (context.dataset.label === 'BTC Price at Purchase (USD)') {
+                                    return label + formatCurrency(context.parsed.y);
+                                } else if (context.dataset.label === 'BTC Amount (On-Chain)') {
+                                    return label + context.parsed.y.toFixed(8) + ' BTC (On-Chain)';
                                 } else {
-                                    label += context.raw.toFixed(8) + ' BTC';
+                                    return label + context.parsed.y.toFixed(8) + ' BTC';
                                 }
-                                return label;
                             }
                         }
                     }
@@ -576,50 +707,100 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderPortfolioValueChart(transactions) {
         const ctx = document.getElementById('portfolio-value-chart').getContext('2d');
         
+        // Separate exchange and on-chain transactions for visualization
+        const exchangeTxs = transactions.filter(tx => !tx.isOnChain);
+        const onChainTxs = transactions.filter(tx => tx.isOnChain);
+        
+        // Combined transactions (sorted by date)
+        const sortedTransactions = [...transactions].sort((a, b) => a.date - b.date);
+        
         // Prepare data for chart
-        const labels = transactions.map(tx => tx.date);
-        const cumulativeBtc = transactions.map(tx => tx.cumulativeBtc);
-        const cumulativeInvestment = [];
+        const labels = sortedTransactions.map(tx => tx.date);
+        const cumulativeBtc = sortedTransactions.map(tx => tx.cumulativeBtc);
+        
+        // Calculate cumulative exchange-only BTC and investment
+        let exchangeOnlyBtc = [];
+        let cumulativeInvestment = [];
+        let runningExchangeBtc = 0;
         let runningInvestment = 0;
         
-        transactions.forEach(tx => {
-            runningInvestment += tx.usdInvested;
+        // We need to rebuild these values to ensure proper chronological order
+        sortedTransactions.forEach(tx => {
+            if (!tx.isOnChain) {
+                runningExchangeBtc += tx.btcAmount;
+                runningInvestment += tx.usdInvested;
+            }
+            exchangeOnlyBtc.push(runningExchangeBtc);
             cumulativeInvestment.push(runningInvestment);
         });
         
-        // Calculate portfolio value at each point using the current BTC price
+        // Calculate portfolio values at each point using the current BTC price
         const portfolioValues = cumulativeBtc.map(btc => btc * currentBtcPrice.price);
+        const exchangeOnlyValues = exchangeOnlyBtc.map(btc => btc * currentBtcPrice.price);
+        
+        // Calculate on-chain-only values
+        const onChainValues = portfolioValues.map((total, i) => includeOnChain ? total - exchangeOnlyValues[i] : 0);
         
         // Destroy existing chart if it exists
         if (window.portfolioChart instanceof Chart) {
             window.portfolioChart.destroy();
         }
         
+        // Determine what datasets to show based on whether we include on-chain
+        const datasets = [];
+        
+        // Always show investment line
+        datasets.push({
+            label: 'Total Investment (USD)',
+            data: labels.map((label, i) => ({
+                x: label,
+                y: cumulativeInvestment[i]
+            })),
+            borderColor: 'rgb(107, 114, 128)',
+            backgroundColor: 'rgba(107, 114, 128, 0.1)',
+            borderWidth: 2,
+            tension: 0.2,
+            borderDash: [5, 5],
+            order: 3 // Draw behind other lines
+        });
+        
+        // Always show exchange-only value line
+        datasets.push({
+            label: 'Exchange-Only Value (USD)',
+            data: labels.map((label, i) => ({
+                x: label,
+                y: exchangeOnlyValues[i]
+            })),
+            borderColor: 'rgb(16, 185, 129)',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: true,
+            borderWidth: 2,
+            tension: 0.2,
+            order: 2
+        });
+        
+        // Show on-chain value if we have any and it's enabled
+        if (onChainTxs.length > 0 && includeOnChain) {
+            datasets.push({
+                label: 'On-Chain Value (USD)',
+                data: labels.map((label, i) => ({
+                    x: label,
+                    y: portfolioValues[i]
+                })),
+                borderColor: 'rgb(79, 70, 229)', // Indigo for on-chain total
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                borderWidth: 2,
+                tension: 0.2,
+                fill: false,
+                order: 1
+            });
+        }
+        
         // Create new chart
         window.portfolioChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Portfolio Value (USD)',
-                        data: portfolioValues,
-                        borderColor: 'rgb(16, 185, 129)',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        fill: true,
-                        borderWidth: 2,
-                        tension: 0.2
-                    },
-                    {
-                        label: 'Total Investment (USD)',
-                        data: cumulativeInvestment,
-                        borderColor: 'rgb(107, 114, 128)',
-                        backgroundColor: 'rgba(107, 114, 128, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.2,
-                        borderDash: [5, 5]
-                    }
-                ]
+                datasets: datasets
             },
             options: {
                 responsive: true,
@@ -658,17 +839,33 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (label) {
                                     label += ': ';
                                 }
-                                label += formatCurrency(context.raw);
-                                if (context.datasetIndex === 0) {
+                                label += formatCurrency(context.parsed.y);
+                                
+                                // Different tooltip labels based on dataset
+                                if (context.dataset.label === 'Exchange-Only Value (USD)') {
                                     const investment = cumulativeInvestment[context.dataIndex];
-                                    const profit = context.raw - investment;
-                                    const roi = (profit / investment) * 100;
+                                    const exchangeBtc = exchangeOnlyBtc[context.dataIndex];
+                                    const profit = exchangeOnlyValues[context.dataIndex] - investment;
+                                    const roi = investment > 0 ? (profit / investment) * 100 : 0;
+                                    
                                     return [
                                         label,
-                                        `BTC: ${cumulativeBtc[context.dataIndex].toFixed(8)}`,
+                                        `Exchange BTC: ${exchangeBtc.toFixed(8)}`,
                                         `Profit/Loss: ${formatCurrency(profit)} (${roi.toFixed(2)}%)`
                                     ];
                                 }
+                                else if (context.dataset.label === 'On-Chain Value (USD)') {
+                                    const totalBtc = cumulativeBtc[context.dataIndex];
+                                    const exchangeBtc = exchangeOnlyBtc[context.dataIndex];
+                                    const onChainBtc = totalBtc - exchangeBtc;
+                                    
+                                    return [
+                                        label,
+                                        `Total BTC: ${totalBtc.toFixed(8)}`,
+                                        `Exchange: ${exchangeBtc.toFixed(8)} BTC | On-Chain: ${onChainBtc.toFixed(8)} BTC`
+                                    ];
+                                }
+                                
                                 return label;
                             }
                         }
@@ -682,26 +879,46 @@ document.addEventListener('DOMContentLoaded', function() {
         const tableBody = document.getElementById('transactions-table-body');
         tableBody.innerHTML = '';
         
+        // Filter out on-chain transactions if not included
+        let displayTransactions = includeOnChain ? transactions : transactions.filter(tx => !tx.isOnChain);
+        
         // Sort transactions by date, most recent first
-        const sortedTransactions = [...transactions].sort((a, b) => b.date - a.date);
+        const sortedTransactions = [...displayTransactions].sort((a, b) => b.date - a.date);
         
         sortedTransactions.forEach(tx => {
             const row = document.createElement('tr');
             
-            // Calculate profit/loss for this transaction
-            const profitLoss = tx.currentValue - tx.usdInvested;
-            const roi = (profitLoss / tx.usdInvested) * 100;
+            // Mark on-chain transactions with a different style
+            if (tx.isOnChain) {
+                row.classList.add('bg-blue-50', 'dark:bg-blue-900', 'dark:bg-opacity-20');
+            }
             
-            // Create table cells
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.exchangeRate)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.usdInvested)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.currentValue)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm ${profitLoss >= 0 ? 'profit' : 'loss'}">${formatCurrency(profitLoss)}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm ${roi >= 0 ? 'profit' : 'loss'}">${roi.toFixed(2)}%</td>
-            `;
+            // Calculate profit/loss for this transaction (not applicable for on-chain)
+            const profitLoss = tx.isOnChain ? 0 : tx.currentValue - tx.usdInvested;
+            const roi = tx.isOnChain ? 0 : (profitLoss / tx.usdInvested) * 100;
+            
+            // Create table cells with special handling for on-chain transactions
+            if (tx.isOnChain) {
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 italic">On-Chain Transfer</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.currentValue)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
+                `;
+            } else {
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.exchangeRate)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.usdInvested)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.currentValue)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${profitLoss >= 0 ? 'profit' : 'loss'}">${formatCurrency(profitLoss)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${roi >= 0 ? 'profit' : 'loss'}">${roi.toFixed(2)}%</td>
+                `;
+            }
             
             tableBody.appendChild(row);
         });
@@ -813,6 +1030,20 @@ document.addEventListener('DOMContentLoaded', function() {
             stopAutoRefresh();
         }
     });
+    
+    // On-chain toggle
+    includeOnchainToggle.addEventListener('change', function() {
+        includeOnChain = this.checked;
+        // Save preference to localStorage
+        localStorage.setItem('includeOnChain', includeOnChain);
+        // If we have CSV data, re-analyze with the new setting
+        if (csvData && currentBtcPrice) {
+            analyzeData();
+        }
+    });
+    
+    // Initialize toggle state from localStorage
+    includeOnchainToggle.checked = includeOnChain;
     
     function startAutoRefresh() {
         if (!autoRefreshInterval) {
