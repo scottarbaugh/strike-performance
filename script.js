@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let purchaseHistory = [];
         let cumulativeBtc = 0;
         let bestPurchaseRate = 0;
-        let bestPurchaseIndex = 0;
+        let bestPurchaseIndex = -1;
         let onChainBtc = 0; // Track on-chain BTC separately
         
         // Process each transaction
@@ -339,8 +339,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalInvested += usdInvested;
                 cumulativeBtc += btcAmount;
                 
-                // Track best purchase (lowest price)
-                if (index === 0 || exchangeRate < bestPurchaseRate) {
+                // Track best purchase (lowest price) - only for exchange transactions
+                if (bestPurchaseIndex === -1 || exchangeRate < bestPurchaseRate) {
                     bestPurchaseRate = exchangeRate;
                     bestPurchaseIndex = index;
                 }
