@@ -678,7 +678,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const tableBody = document.getElementById('transactions-table-body');
         tableBody.innerHTML = '';
         
-        transactions.forEach(tx => {
+        // Sort transactions by date, most recent first
+        const sortedTransactions = [...transactions].sort((a, b) => b.date - a.date);
+        
+        sortedTransactions.forEach(tx => {
             const row = document.createElement('tr');
             
             // Calculate profit/loss for this transaction
