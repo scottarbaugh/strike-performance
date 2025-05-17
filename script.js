@@ -1056,9 +1056,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Render results without scrolling
                 renderResults(analysisResults, currentBtcPrice);
                 
-                // Update the last refresh time and disable refresh button
-                lastRefreshTime = Date.now();
-                updateManualRefreshButton();
+                // No need to update lastRefreshTime here - this would disable the refresh button
+                // when toggling Include On-Chain
                 
             } catch (error) {
                 showError(error.message);
