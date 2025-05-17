@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let refreshing = false;
     let lastRefreshTime = null;
     let includeOnChain = true; // Always include on-chain transactions
-    const MANUAL_REFRESH_COOLDOWN = 60000; // 1 minute cooldown for manual refresh
+    const MANUAL_REFRESH_COOLDOWN = 120000; // 1 minute cooldown for manual refresh
     
     // Check for saved theme preference and apply it
     function applyTheme() {
@@ -1025,11 +1025,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // If auto-refresh is enabled, also show the countdown to next auto-refresh in the button
         if (autoRefreshToggle.checked && nextRefreshTime) {
             const timeToNextRefresh = Math.max(0, nextRefreshTime - now);
-            const secondsToNextRefresh = Math.floor(timeToNextRefresh / 1000);
+            const secondsToNextRefresh = Math.ceil(timeToNextRefresh / 1000);
+            
+            // Ensure we always show the correct time left (up to full REFRESH_INTERVAL)
+            const displaySeconds = Math.min(secondsToNextRefresh, Math.floor(REFRESH_INTERVAL / 1000));
             
             if (!manualRefreshBtn.disabled) {
-                manualRefreshBtn.title = `Auto-refresh in ${secondsToNextRefresh}s`;
-                manualRefreshBtn.innerHTML = `<i class="fas fa-sync-alt mr-1"></i> ${secondsToNextRefresh}s`;
+                manualRefreshBtn.title = `Auto-refresh in ${displaySeconds}s`;
+                manualRefreshBtn.innerHTML = `<i class="fas fa-sync-alt mr-1"></i> ${displaySeconds}s`;
             }
         }
     }
@@ -1040,7 +1043,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-refresh toggle
     autoRefreshToggle.addEventListener('change', function() {
         if (this.checked) {
-            startAutoRefresh();
+            // Check if manual refresh is available (cooldown period completed)
+            const now = Date.now();
+            const manualRefreshAvailable = !lastRefreshTime || (now - lastRefreshTime) >= MANUAL_REFRESH_COOLDOWN;
+            
+            // If manual refresh is available, refresh immediately then start the timer
+            if (manualRefreshAvailable && currentBtcPrice && analysisResults) {
+                refreshBitcoinPrice();
+                // After immediate refresh, start the regular interval
+                startAutoRefresh();
+            } else {
+                // Otherwise just start the timer for the next refresh
+                startAutoRefresh();
+            }
         } else {
             stopAutoRefresh();
         }
