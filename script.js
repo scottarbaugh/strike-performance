@@ -18,6 +18,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const refreshIntervalDisplay = document.getElementById('refresh-interval');
     const includeOnchainToggle = document.getElementById('include-onchain-toggle');
     
+    // Donation elements
+    const donateButton = document.getElementById('donate-button');
+    const donationModal = document.getElementById('donation-modal');
+    const closeDonationModal = document.getElementById('close-donation-modal');
+    const closeDonationBtn = document.getElementById('close-donation-btn');
+    const copyBtcAddressBtn = document.getElementById('copy-btc-address');
+    const btcAddress = document.getElementById('btc-address');
+    const copySuccess = document.getElementById('copy-success');
+    
     // Global variables
     let csvData = null;
     let currentFile = null;
@@ -1060,6 +1069,53 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize toggle state from localStorage
     includeOnchainToggle.checked = includeOnChain;
+    
+    // Donation functionality
+    donateButton.addEventListener('click', () => {
+        donationModal.classList.remove('hidden');
+        // Set a small timeout to ensure the modal is rendered before adding the active class
+        setTimeout(() => {
+            donationModal.classList.add('active');
+        }, 10);
+    });
+    
+    function closeDonationModalFunc() {
+        donationModal.classList.remove('active');
+        // Add a delay before hiding completely to allow for animation
+        setTimeout(() => {
+            donationModal.classList.add('hidden');
+        }, 300);
+        
+        // Hide copy success message if visible
+        copySuccess.classList.add('hidden');
+    }
+    
+    closeDonationModal.addEventListener('click', closeDonationModalFunc);
+    closeDonationBtn.addEventListener('click', closeDonationModalFunc);
+    
+    // Close modal when clicking outside the modal content
+    donationModal.addEventListener('click', (e) => {
+        if (e.target === donationModal) {
+            closeDonationModalFunc();
+        }
+    });
+    
+    // Copy Bitcoin address to clipboard
+    copyBtcAddressBtn.addEventListener('click', async () => {
+        const address = btcAddress.textContent.trim();
+        
+        try {
+            await navigator.clipboard.writeText(address);
+            copySuccess.classList.remove('hidden');
+            
+            // Hide the success message after 3 seconds
+            setTimeout(() => {
+                copySuccess.classList.add('hidden');
+            }, 3000);
+        } catch (err) {
+            console.error('Failed to copy address: ', err);
+        }
+    });
     
     function startAutoRefresh() {
         if (!autoRefreshInterval) {

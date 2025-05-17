@@ -171,6 +171,31 @@ button:disabled {
   animation: spin 1s linear infinite;
 }
 
+/* Donation Modal Styles */
+#donation-modal {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#donation-modal.active {
+  opacity: 1;
+}
+
+#donation-modal .bg-white,
+#donation-modal .dark\:bg-gray-800 {
+  transform: scale(0.95);
+  transition: transform 0.3s ease;
+}
+
+#donation-modal.active .bg-white,
+#donation-modal.active .dark\:bg-gray-800 {
+  transform: scale(1);
+}
+
+#copy-success {
+  transition: opacity 0.3s ease;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   #results-section .grid {

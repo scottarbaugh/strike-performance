@@ -21,8 +21,15 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
     <div class="container mx-auto px-4 py-8 relative">
-        <!-- Theme Toggle Button in Upper-Right Corner -->
-        <div class="absolute top-2 right-4">
+        <!-- Theme Toggle and Donate Buttons in Upper-Right Corner -->
+        <div class="absolute top-2 right-4 flex space-x-2">
+            <!-- Donate Button -->
+            <button id="donate-button" class="px-4 py-2 bg-yellow-500 dark:bg-yellow-600 text-white rounded-full text-sm flex items-center hover:bg-yellow-600 dark:hover:bg-yellow-700 transition-colors">
+                <i class="fas fa-donate mr-1"></i>
+                <span>Donate</span>
+            </button>
+            
+            <!-- Theme Toggle Button -->
             <button id="theme-toggle" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-full text-sm flex items-center">
                 <i class="fas fa-moon dark:hidden"></i>
                 <i class="fas fa-sun hidden dark:block"></i>
@@ -269,6 +276,47 @@
             <p>This app processes data locally in your browser. No data is sent to any server.</p>
             <p class="mt-2">© 2025 Strike BTC Performance Analyzer</p>
         </footer>
+    </div>
+
+    <!-- Donation Modal -->
+    <div id="donation-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-gray-800 max-w-md w-full p-6 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Support this Project</h3>
+                <button id="close-donation-modal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="text-gray-600 dark:text-gray-300 mb-4">
+                You may use this site for free, but feel free to buy me a coffee if you think this is useful.
+            </div>
+            
+            <div class="mb-4 flex justify-center">
+                <img src="assets/qr_code.png" alt="Bitcoin QR Code" class="w-48 h-48">
+            </div>
+            
+            <div class="mb-6">
+                <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Bitcoin Address:</div>
+                <div class="relative">
+                    <div id="btc-address" class="bg-gray-100 dark:bg-gray-700 p-3 rounded font-mono text-sm break-all text-gray-800 dark:text-gray-200">
+                        bc1qpj80p80ypu9uxyv4tsk879qm9h8qtpvzu2qfua
+                    </div>
+                    <button id="copy-btc-address" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300" title="Copy to clipboard">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <div id="copy-success" class="hidden mt-2 text-sm text-green-500 text-center">
+                    Address copied to clipboard!
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button id="close-donation-btn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Scripts -->
