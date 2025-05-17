@@ -15,8 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const themeToggle = document.getElementById('theme-toggle');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const manualRefreshBtn = document.getElementById('manual-refresh');
-    const refreshIntervalDisplay = document.getElementById('refresh-interval');
-    const includeOnchainToggle = document.getElementById('include-onchain-toggle');
     
     // Donation elements
     const donateButton = document.getElementById('donate-button');
@@ -37,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let nextRefreshTime = null;
     let refreshing = false;
     let lastRefreshTime = null;
-    let includeOnChain = localStorage.getItem('includeOnChain') === 'true'; // Load from localStorage or default to false
+    let includeOnChain = true; // Always include on-chain transactions
     const MANUAL_REFRESH_COOLDOWN = 60000; // 1 minute cooldown for manual refresh
     
     // Check for saved theme preference and apply it
@@ -487,8 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
             priceDirectionIcon.className = 'fas fa-arrow-down ml-1 loss';
         }
         
-        // Update the on-chain toggle state
-        includeOnchainToggle.checked = results.includesOnChain;
+        // On-chain transactions are now always included
         
         // Summary cards
         document.getElementById('total-btc').textContent = results.totalBtc.toFixed(8);
@@ -1018,11 +1015,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const secondsRemaining = Math.ceil((MANUAL_REFRESH_COOLDOWN - timeSinceLastRefresh) / 1000);
             manualRefreshBtn.disabled = true;
             manualRefreshBtn.title = `Please wait ${secondsRemaining} seconds before refreshing again`;
-            manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> Wait ${secondsRemaining}s`;
+            manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> ${secondsRemaining}s`;
         } else {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Refresh price data";
             manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
+        }
+        
+        // If auto-refresh is enabled, also show the countdown to next auto-refresh in the button
+        if (autoRefreshToggle.checked && nextRefreshTime) {
+            const timeToNextRefresh = Math.max(0, nextRefreshTime - now);
+            const secondsToNextRefresh = Math.floor(timeToNextRefresh / 1000);
+            
+            if (!manualRefreshBtn.disabled) {
+                manualRefreshBtn.title = `Auto-refresh in ${secondsToNextRefresh}s`;
+                manualRefreshBtn.innerHTML = `<i class="fas fa-sync-alt mr-1"></i> ${secondsToNextRefresh}s`;
+            }
         }
     }
     
@@ -1038,38 +1046,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // On-chain toggle
-    includeOnchainToggle.addEventListener('change', function() {
-        includeOnChain = this.checked;
-        // Save preference to localStorage
-        localStorage.setItem('includeOnChain', includeOnChain);
-        // If we have CSV data, re-analyze with the new setting
-        if (csvData && currentBtcPrice) {
-            // Need to modify analysis flow to avoid auto-scrolling
-            showLoading();
-            hideError();
-            
-            try {
-                // Process and analyze data with current price
-                analysisResults = calculatePerformance(csvData, currentBtcPrice.price);
-                
-                // Render results without scrolling
-                renderResults(analysisResults, currentBtcPrice);
-                
-                // No need to update lastRefreshTime here - this would disable the refresh button
-                // when toggling Include On-Chain
-                
-            } catch (error) {
-                showError(error.message);
-                console.error(error);
-            } finally {
-                hideLoading();
-            }
-        }
-    });
-    
-    // Initialize toggle state from localStorage
-    includeOnchainToggle.checked = includeOnChain;
+    // On-chain transactions are now always included by default
     
     // Donation functionality
     donateButton.addEventListener('click', () => {
@@ -1147,7 +1124,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 countdownInterval = null;
             }
             
-            refreshIntervalDisplay.textContent = '';
+            // No need to clear text since we're not showing it anymore
         }
     }
     
@@ -1162,8 +1139,7 @@ document.addEventListener('DOMContentLoaded', function() {
             nextRefreshTime = Date.now() + REFRESH_INTERVAL;
         }
         
-        const seconds = Math.floor(timeLeft / 1000);
-        refreshIntervalDisplay.textContent = `Next refresh in ${seconds}s`;
+        // No longer displaying countdown text
     }
     
     async function refreshBitcoinPrice() {

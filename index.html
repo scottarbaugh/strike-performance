@@ -103,31 +103,17 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex justify-between items-center mt-4 pt-3 border-t border-blue-500">
+                <div class="flex justify-end items-center mt-4 pt-3 border-t border-blue-500">
                     <div class="flex items-center space-x-4">
-                        <button id="manual-refresh" class="bg-blue-500 hover:bg-blue-400 text-white px-3 py-1 rounded text-sm flex items-center" title="Refresh price data">
-                            <i class="fas fa-sync-alt mr-1"></i> Refresh
-                        </button>
-                        
-                        <div class="flex items-center">
-                            <label for="include-onchain-toggle" class="text-sm mr-2 cursor-pointer whitespace-nowrap" title="Include On-Chain transactions in your analysis">
-                                Include On-Chain:
-                            </label>
-                            <label class="relative inline-block w-10 align-middle select-none cursor-pointer">
-                                <input type="checkbox" id="include-onchain-toggle" class="sr-only" />
-                                <div class="block bg-gray-400 w-10 h-6 rounded-full"></div>
-                                <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="flex items-center">
                         <label for="auto-refresh-toggle" class="text-sm mr-2 cursor-pointer">Auto-refresh:</label>
                         <label class="relative inline-block w-10 align-middle select-none cursor-pointer">
                             <input type="checkbox" id="auto-refresh-toggle" class="sr-only" />
                             <div class="block bg-gray-400 w-10 h-6 rounded-full"></div>
                             <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
                         </label>
-                        <span id="refresh-interval" class="text-xs ml-2 opacity-75"></span>
+                        <button id="manual-refresh" class="bg-blue-500 hover:bg-blue-400 text-white px-3 py-1 rounded text-sm flex items-center ml-4" title="Refresh price data">
+                            <i class="fas fa-sync-alt mr-1"></i> Refresh
+                        </button>
                     </div>
                 </div>
             </div>
@@ -193,7 +179,7 @@
                     <h3 class="text-gray-700 dark:text-gray-300 text-lg font-medium mb-4">DCA Strategy Performance</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <h4 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total Purchases</h4>
+                            <h4 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total Transactions</h4>
                             <span id="total-purchases" class="text-xl font-bold text-gray-800 dark:text-white"></span>
                         </div>
                         <div>
@@ -211,7 +197,7 @@
                             <h4 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">DCA vs. Lump Sum</h4>
                             <div class="flex items-center">
                                 <span id="dca-vs-lump" class="text-xl font-bold"></span>
-                                <i class="fas fa-info-circle ml-2 text-gray-400 cursor-help" title="Performance comparison between your DCA strategy and if you had invested everything at your first purchase."></i>
+                                <i class="fas fa-info-circle ml-2 text-gray-400 cursor-help" title="Shows how your dollar-cost averaging (DCA) strategy compares to investing everything at once on your first purchase date. A positive percentage means your DCA strategy performed BETTER than a lump sum approach. A negative percentage means a lump sum approach would have performed better."></i>
                             </div>
                         </div>
                     </div>
