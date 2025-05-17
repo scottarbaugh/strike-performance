@@ -1044,7 +1044,27 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('includeOnChain', includeOnChain);
         // If we have CSV data, re-analyze with the new setting
         if (csvData && currentBtcPrice) {
-            analyzeData();
+            // Need to modify analysis flow to avoid auto-scrolling
+            showLoading();
+            hideError();
+            
+            try {
+                // Process and analyze data with current price
+                analysisResults = calculatePerformance(csvData, currentBtcPrice.price);
+                
+                // Render results without scrolling
+                renderResults(analysisResults, currentBtcPrice);
+                
+                // Update the last refresh time and disable refresh button
+                lastRefreshTime = Date.now();
+                updateManualRefreshButton();
+                
+            } catch (error) {
+                showError(error.message);
+                console.error(error);
+            } finally {
+                hideLoading();
+            }
         }
     });
     
