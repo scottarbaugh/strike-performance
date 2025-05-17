@@ -975,16 +975,6 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessageContainer.classList.add('hidden');
     }
     
-    // Handle download report button
-    document.getElementById('download-report').addEventListener('click', function() {
-        alert('Report download feature will be implemented in a future update.');
-    });
-    
-    // Handle share results button
-    document.getElementById('share-results').addEventListener('click', function() {
-        alert('Share results feature will be implemented in a future update.');
-    });
-    
     // Refresh functionality
     
     // Set the refresh rate based on API limits (CoinGecko has a rate limit)
