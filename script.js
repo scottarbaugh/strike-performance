@@ -25,6 +25,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const btcAddress = document.getElementById('btc-address');
     const copySuccess = document.getElementById('copy-success');
     
+    // Instructions elements
+    const instructionsButton = document.getElementById('instructions-button');
+    const instructionsModal = document.getElementById('instructions-modal');
+    const closeInstructionsModal = document.getElementById('close-instructions-modal');
+    const closeInstructionsBtn = document.getElementById('close-instructions-btn');
+    
     // Global variables
     let csvData = null;
     let currentFile = null;
@@ -585,12 +591,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const onChainTxs = transactions.filter(tx => tx.isOnChain);
         
         // Exchange transaction data
-        const exchangeLabels = exchangeTxs.map(tx => tx.date);
+        const exchangeLabels = exchangeTxs.map(tx => {
+            // Ensure date is properly handled as a Date object
+            return tx.date instanceof Date ? tx.date : new Date(tx.date);
+        });
         const exchangeRates = exchangeTxs.map(tx => tx.exchangeRate);
         const exchangeBtcAmounts = exchangeTxs.map(tx => tx.btcAmount);
         
         // On-chain transaction data
-        const onChainLabels = onChainTxs.map(tx => tx.date);
+        const onChainLabels = onChainTxs.map(tx => {
+            // Ensure date is properly handled as a Date object
+            return tx.date instanceof Date ? tx.date : new Date(tx.date);
+        });
         const onChainBtcAmounts = onChainTxs.map(tx => tx.btcAmount);
         
         // Destroy existing chart if it exists
@@ -601,10 +613,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create datasets
         const datasets = [
             {
-                label: 'BTC Price at Purchase (USD)',
-                data: exchangeLabels.map((label, i) => ({
-                    x: label,
-                    y: exchangeRates[i]
+                label: 'BTC Price (Exchange)',
+                data: exchangeTxs.map(tx => ({
+                    x: tx.date instanceof Date ? tx.date : new Date(tx.date),
+                    y: tx.exchangeRate
                 })),
                 borderColor: 'rgb(59, 130, 246)',
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -614,9 +626,9 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 label: 'BTC Amount (Exchange)',
-                data: exchangeLabels.map((label, i) => ({
-                    x: label,
-                    y: exchangeBtcAmounts[i]
+                data: exchangeTxs.map(tx => ({
+                    x: tx.date instanceof Date ? tx.date : new Date(tx.date),
+                    y: tx.btcAmount
                 })),
                 borderColor: 'rgb(245, 158, 11)',
                 backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -631,16 +643,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (onChainTxs.length > 0 && includeOnChain) {
             datasets.push({
                 label: 'BTC Amount (On-Chain)',
-                data: onChainLabels.map((label, i) => ({
-                    x: label,
-                    y: onChainBtcAmounts[i]
+                data: onChainTxs.map(tx => ({
+                    x: tx.date instanceof Date ? tx.date : new Date(tx.date),
+                    y: tx.btcAmount,
+                    // Store the actual date directly in the data point for tooltip access
+                    actualDate: tx.date instanceof Date ? tx.date : new Date(tx.date)
                 })),
                 borderColor: 'rgb(16, 185, 129)', // Green color for on-chain
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderWidth: 2,
+                borderWidth: 0, // No border to prevent connecting lines
+                showLine: false, // Don't connect the points with a line
                 pointStyle: 'triangle', // Different point style for on-chain
-                pointRadius: 6,
-                tension: 0.2,
+                pointRadius: 8, // Larger point size for visibility
+                pointHoverRadius: 10,
+                pointBackgroundColor: 'rgb(16, 185, 129)',
+                pointBorderColor: 'rgb(16, 185, 129)',
                 yAxisID: 'y1'
             });
         }
@@ -697,16 +714,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 plugins: {
                     tooltip: {
                         callbacks: {
+                            title: function(tooltipItems) {
+                                // Customize the title to ensure correct date display
+                                const item = tooltipItems[0];
+                                if (item.dataset.label === 'BTC Amount (On-Chain)' && item.raw.actualDate) {
+                                    // For on-chain points, use the stored actual date
+                                    return formatDate(new Date(item.raw.actualDate), true);
+                                }
+                                // Use default tooltip date format for other points
+                                return formatDate(new Date(item.parsed.x), true);
+                            },
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) {
                                     label += ': ';
                                 }
                                 
-                                if (context.dataset.label === 'BTC Price at Purchase (USD)') {
+                                if (context.dataset.label === 'BTC Price (Exchange)') {
                                     return label + formatCurrency(context.parsed.y);
                                 } else if (context.dataset.label === 'BTC Amount (On-Chain)') {
-                                    return label + context.parsed.y.toFixed(8) + ' BTC (On-Chain)';
+                                    return `${label}${context.parsed.y.toFixed(8)} BTC`;
                                 } else {
                                     return label + context.parsed.y.toFixed(8) + ' BTC';
                                 }
@@ -726,10 +753,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const onChainTxs = transactions.filter(tx => tx.isOnChain);
         
         // Combined transactions (sorted by date)
-        const sortedTransactions = [...transactions].sort((a, b) => a.date - b.date);
+        const sortedTransactions = [...transactions].sort((a, b) => {
+            // Ensure proper date comparison
+            const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+            const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+            return dateA - dateB;
+        });
         
         // Prepare data for chart
-        const labels = sortedTransactions.map(tx => tx.date);
+        const labels = sortedTransactions.map(tx => {
+            // Ensure date is properly handled as a Date object
+            return tx.date instanceof Date ? tx.date : new Date(tx.date);
+        });
         const cumulativeBtc = sortedTransactions.map(tx => tx.cumulativeBtc);
         
         // Calculate cumulative exchange-only BTC and investment
@@ -765,7 +800,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Always show investment line
         datasets.push({
-            label: 'Total Investment (USD)',
+            label: 'Exchange-Only Investment',
             data: labels.map((label, i) => ({
                 x: label,
                 y: cumulativeInvestment[i]
@@ -780,7 +815,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Always show exchange-only value line
         datasets.push({
-            label: 'Exchange-Only Value (USD)',
+            label: 'Exchange-Only Value',
             data: labels.map((label, i) => ({
                 x: label,
                 y: exchangeOnlyValues[i]
@@ -796,7 +831,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show on-chain value if we have any and it's enabled
         if (onChainTxs.length > 0 && includeOnChain) {
             datasets.push({
-                label: 'On-Chain Value (USD)',
+                label: 'Total Value (incl. On-Chain)',
                 data: labels.map((label, i) => ({
                     x: label,
                     y: portfolioValues[i]
@@ -856,7 +891,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 label += formatCurrency(context.parsed.y);
                                 
                                 // Different tooltip labels based on dataset
-                                if (context.dataset.label === 'Exchange-Only Value (USD)') {
+                                if (context.dataset.label === 'Exchange-Only Value') {
                                     const investment = cumulativeInvestment[context.dataIndex];
                                     const exchangeBtc = exchangeOnlyBtc[context.dataIndex];
                                     const profit = exchangeOnlyValues[context.dataIndex] - investment;
@@ -864,11 +899,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     
                                     return [
                                         label,
-                                        `Exchange BTC: ${exchangeBtc.toFixed(8)}`,
                                         `Profit/Loss: ${formatCurrency(profit)} (${roi.toFixed(2)}%)`
                                     ];
                                 }
-                                else if (context.dataset.label === 'On-Chain Value (USD)') {
+                                else if (context.dataset.label === 'Total Value (incl. On-Chain)') {
                                     const totalBtc = cumulativeBtc[context.dataIndex];
                                     const exchangeBtc = exchangeOnlyBtc[context.dataIndex];
                                     const onChainBtc = totalBtc - exchangeBtc;
@@ -1076,6 +1110,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // On-chain transactions are now always included by default
+    
+    // Instructions modal functionality
+    instructionsButton.addEventListener('click', () => {
+        instructionsModal.classList.remove('hidden');
+        // Set a small timeout to ensure the modal is rendered before adding the active class
+        setTimeout(() => {
+            instructionsModal.classList.add('active');
+        }, 10);
+    });
+    
+    function closeInstructionsModalFunc() {
+        instructionsModal.classList.remove('active');
+        // Add a delay before hiding completely to allow for animation
+        setTimeout(() => {
+            instructionsModal.classList.add('hidden');
+        }, 300);
+    }
+    
+    closeInstructionsModal.addEventListener('click', closeInstructionsModalFunc);
+    closeInstructionsBtn.addEventListener('click', closeInstructionsModalFunc);
+    
+    // Close modal when clicking outside the modal content
+    instructionsModal.addEventListener('click', (e) => {
+        if (e.target === instructionsModal) {
+            closeInstructionsModalFunc();
+        }
+    });
     
     // Donation functionality
     donateButton.addEventListener('click', () => {

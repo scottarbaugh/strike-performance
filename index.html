@@ -42,7 +42,41 @@
         <header class="mb-8 text-center">
             <h1 class="text-4xl font-bold mb-2 text-blue-600 dark:text-blue-400">Strike BTC Performance Analyzer</h1>
             <p class="text-gray-600 dark:text-gray-400">Upload your Strike CSV export to analyze your Bitcoin investment performance</p>
+            <button id="instructions-button" class="mt-4 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center justify-center mx-auto">
+                <i class="fas fa-info-circle mr-1"></i> How to get your CSV report
+            </button>
         </header>
+        
+        <!-- Instructions Modal -->
+        <div id="instructions-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div class="bg-white dark:bg-gray-800 max-w-lg w-full p-6 rounded-lg shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">How to Get Your Strike CSV Report</h3>
+                    <button id="close-instructions-modal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="text-gray-600 dark:text-gray-300 mb-4">
+                    <ol class="list-decimal list-inside space-y-3">
+                        <li>Go to <a href="https://dashboard.strike.me/" class="text-blue-500 hover:underline" target="_blank">https://dashboard.strike.me/</a></li>
+                        <li>Click "Activity" on the left sidebar</li>
+                        <li>Click "Generate report" button</li>
+                        <li>Choose "All transactions" in the dropdown</li>
+                        <li>Select "BTC" for the asset</li>
+                        <li>Enter your desired date range</li>
+                        <li>Click "Download"</li>
+                        <li>Upload the downloaded CSV file to this site for performance analysis</li>
+                    </ol>
+                </div>
+                
+                <div class="text-center">
+                    <button id="close-instructions-btn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- File Upload Section -->
         <div id="upload-section" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
@@ -56,7 +90,7 @@
                     </label>
                 </div>
                 <input type="file" id="file-input" accept=".csv" class="hidden" />
-                <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Upload your Strike BTC account statement CSV file</p>
+                <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Upload your Strike CSV report</p>
             </div>
             <div id="file-info" class="mt-4 hidden">
                 <div class="flex items-center justify-between">

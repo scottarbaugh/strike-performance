@@ -171,24 +171,30 @@ button:disabled {
   animation: spin 1s linear infinite;
 }
 
-/* Donation Modal Styles */
-#donation-modal {
+/* Modal Styles (shared for donation and instructions) */
+#donation-modal,
+#instructions-modal {
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-#donation-modal.active {
+#donation-modal.active,
+#instructions-modal.active {
   opacity: 1;
 }
 
 #donation-modal .bg-white,
-#donation-modal .dark\:bg-gray-800 {
+#donation-modal .dark\:bg-gray-800,
+#instructions-modal .bg-white,
+#instructions-modal .dark\:bg-gray-800 {
   transform: scale(0.95);
   transition: transform 0.3s ease;
 }
 
 #donation-modal.active .bg-white,
-#donation-modal.active .dark\:bg-gray-800 {
+#donation-modal.active .dark\:bg-gray-800,
+#instructions-modal.active .bg-white,
+#instructions-modal.active .dark\:bg-gray-800 {
   transform: scale(1);
 }
 
