@@ -851,14 +851,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add on-chain transactions dataset if we have any
         if (onChainTxs.length > 0 && includeOnChain) {
-            datasets.push({
-                label: 'BTC Amount (On-Chain)',
-                data: onChainTxs.map(tx => ({
-                    x: tx.date instanceof Date ? tx.date : new Date(tx.date),
+            // Simplify the on-chain data structure to avoid potential issues
+            const onChainData = onChainTxs.map(tx => {
+                // Ensure we're working with a proper Date object
+                const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                
+                return {
+                    // Use the date as the x-axis value
+                    x: txDate,
                     y: tx.btcAmount,
-                    // Store the actual date directly in the data point for tooltip access
-                    actualDate: tx.date instanceof Date ? tx.date : new Date(tx.date)
-                })),
+                    // Store the original date for tooltip access
+                    originalDate: txDate,
+                    // Pre-format the date for consistent display
+                    formattedDate: formatDate(txDate, true)
+                };
+            });
+            
+            datasets.push({
+                label: 'BTC Amount (On-Chain)', 
+                data: onChainData,
                 borderColor: 'rgb(16, 185, 129)', // Green color for on-chain
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderWidth: 0, // No border to prevent connecting lines
@@ -882,8 +893,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: {
-                    mode: 'index',
-                    intersect: false
+                    mode: 'point',
+                    intersect: true
                 },
                 scales: {
                     x: {
@@ -923,16 +934,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 plugins: {
                     tooltip: {
+                        // Basic tooltip behavior - let Chart.js handle defaults
+                        mode: 'nearest',
+                        intersect: true,
+                        // Prioritize on-chain data points when present
+                        itemSort: function(a, b) {
+                            if (a.dataset.label === 'BTC Amount (On-Chain)') return -1;
+                            if (b.dataset.label === 'BTC Amount (On-Chain)') return 1;
+                            return 0;
+                        },
                         callbacks: {
                             title: function(tooltipItems) {
                                 // Customize the title to ensure correct date display
                                 const item = tooltipItems[0];
-                                if (item.dataset.label === 'BTC Amount (On-Chain)' && item.raw.actualDate) {
-                                    // For on-chain points, use the stored actual date
-                                    return formatDate(new Date(item.raw.actualDate), true);
+                                
+                                // Simple approach: Use the parsed X value which is a timestamp
+                                const date = new Date(item.parsed.x);
+                                
+                                // Add special handling for on-chain points
+                                if (item.dataset.label === 'BTC Amount (On-Chain)' && item.raw) {
+                                    // Use formattedDate or originalDate if available 
+                                    if (item.raw.formattedDate) {
+                                        return item.raw.formattedDate;
+                                    } else if (item.raw.originalDate) {
+                                        return formatDate(item.raw.originalDate, true);
+                                    }
                                 }
-                                // Use default tooltip date format for other points
-                                return formatDate(new Date(item.parsed.x), true);
+                                
+                                // Default fallback
+                                return formatDate(date, true);
                             },
                             label: function(context) {
                                 let label = context.dataset.label || '';
@@ -953,7 +983,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                         maximumFractionDigits: 2
                                     }).format(context.parsed.y);
                                 } else if (context.dataset.label === 'BTC Amount (On-Chain)') {
-                                    return `${label}${context.parsed.y.toFixed(8)} BTC`;
+                                    // For on-chain transactions, ensure we're using the correct BTC amount
+                                    let btcAmount = context.parsed.y;
+                                    if (context.raw && typeof context.raw.y === 'number') {
+                                        btcAmount = context.raw.y;
+                                    }
+                                    return `${label}${btcAmount.toFixed(8)} BTC`;
                                 } else {
                                     return label + context.parsed.y.toFixed(8) + ' BTC';
                                 }
@@ -1027,7 +1062,9 @@ document.addEventListener('DOMContentLoaded', function() {
             label: `Exchange-Only Investment (${currencyObj.code})`,
             data: labels.map((label, i) => ({
                 x: label,
-                y: cumulativeInvestment[i]
+                y: cumulativeInvestment[i],
+                // Store extra metadata for tooltip access
+                formattedDate: formatDate(label, true)
             })),
             borderColor: 'rgb(107, 114, 128)',
             backgroundColor: 'rgba(107, 114, 128, 0.1)',
@@ -1042,7 +1079,9 @@ document.addEventListener('DOMContentLoaded', function() {
             label: `Exchange-Only Value (${currencyObj.code})`,
             data: labels.map((label, i) => ({
                 x: label,
-                y: exchangeOnlyValues[i]
+                y: exchangeOnlyValues[i],
+                // Store extra metadata for tooltip access
+                formattedDate: formatDate(label, true)
             })),
             borderColor: 'rgb(16, 185, 129)',
             backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -1058,7 +1097,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 label: `Total Value (incl. On-Chain) (${currencyObj.code})`,
                 data: labels.map((label, i) => ({
                     x: label,
-                    y: portfolioValues[i]
+                    y: portfolioValues[i],
+                    // Store extra metadata for tooltip access
+                    formattedDate: formatDate(label, true)
                 })),
                 borderColor: 'rgb(79, 70, 229)', // Indigo for on-chain total
                 backgroundColor: 'rgba(79, 70, 229, 0.1)',
@@ -1079,8 +1120,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: {
-                    mode: 'index',
-                    intersect: false
+                    mode: 'point',
+                    intersect: true
                 },
                 scales: {
                     x: {
@@ -1106,7 +1147,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 plugins: {
                     tooltip: {
+                        // Basic tooltip behavior - let Chart.js handle defaults
+                        mode: 'nearest',
+                        intersect: true,
                         callbacks: {
+                            title: function(tooltipItems) {
+                                // Customize the title to ensure correct date display
+                                const item = tooltipItems[0];
+                                
+                                // Simple approach: Use the parsed X value which is a timestamp
+                                const date = new Date(item.parsed.x);
+                                
+                                // Default fallback
+                                return formatDate(date, true);
+                            },
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) {

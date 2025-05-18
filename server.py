@@ -28,12 +28,7 @@ if __name__ == "__main__":
             with socketserver.TCPServer(("", PORT), Handler) as httpd:
                 print(f"Server started at http://localhost:{PORT}")
                 print(f"Serving files from: {DIRECTORY}")
-                print("Press Ctrl+C to stop the server.")
-                
-                # Open browser automatically if on macOS
-                if sys.platform == 'darwin':
-                    os.system(f"open http://localhost:{PORT}")
-                
+                print("Press Ctrl+C to stop the server.")                
                 httpd.serve_forever()
         except OSError as e:
             if e.errno == 48:  # Address already in use
