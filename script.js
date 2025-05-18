@@ -1,9 +1,41 @@
 // Main JavaScript file for Strike BTC Performance Analyzer
 
+// App version for cache busting
+const APP_VERSION = '1.0.3';
+
 // SUPPORTED_CURRENCIES is loaded from currencies.js
+
+// Function to handle cache busting when new versions are deployed
+function checkForUpdates() {
+    // Check local storage for the last version used
+    const lastVersion = localStorage.getItem('app_version');
+    
+    // If this is a new version, clear any cached data
+    if (lastVersion !== APP_VERSION) {
+        // We could clear app-specific cache items here if needed
+        // but be careful not to remove user preferences like theme
+        
+        // Update version in localStorage
+        localStorage.setItem('app_version', APP_VERSION);
+        
+        // If it's a refresh (not first load) and the version changed
+        if (lastVersion) {
+            // Force reload to ensure all assets are fresh
+            window.location.reload(true);
+        }
+    }
+}
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Check for updates on page load
+    checkForUpdates();
+    
+    // Display app version in footer
+    const versionElement = document.getElementById('app-version');
+    if (versionElement) {
+        versionElement.textContent = APP_VERSION;
+    }
     // DOM Elements
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('file-input');
@@ -670,6 +702,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const totalProfitElement = document.getElementById('total-profit');
         const profitPercentageElement = document.getElementById('profit-percentage');
+        const profitLossCard = document.getElementById('profit-loss-card');
         
         // Always show the exchange-only profit/loss, regardless of on-chain toggle
         // Format directly without conversion
@@ -683,12 +716,17 @@ document.addEventListener('DOMContentLoaded', function() {
         totalProfitElement.textContent = totalProfitFormatted;
         profitPercentageElement.textContent = `(${results.totalRoi.toFixed(2)}%)`;
         
+        // Apply enhanced styling to make the profit/loss card stand out
         if (results.totalProfit >= 0) {
-            totalProfitElement.className = 'text-2xl font-bold profit';
-            profitPercentageElement.className = 'ml-2 text-sm profit';
+            // Profit styling
+            totalProfitElement.className = 'text-4xl font-bold profit';
+            profitPercentageElement.className = 'ml-2 text-lg self-center font-semibold profit';
+            profitLossCard.className = 'bg-green-50 dark:bg-green-900 dark:bg-opacity-20 rounded-lg shadow-lg p-6 transform transition-all duration-300 hover:scale-105 border-l-4 border-green-500';
         } else {
-            totalProfitElement.className = 'text-2xl font-bold loss';
-            profitPercentageElement.className = 'ml-2 text-sm loss';
+            // Loss styling
+            totalProfitElement.className = 'text-4xl font-bold loss';
+            profitPercentageElement.className = 'ml-2 text-lg self-center font-semibold loss';
+            profitLossCard.className = 'bg-red-50 dark:bg-red-900 dark:bg-opacity-20 rounded-lg shadow-lg p-6 transform transition-all duration-300 hover:scale-105 border-l-4 border-red-500';
         }
         
         // Additional metrics
