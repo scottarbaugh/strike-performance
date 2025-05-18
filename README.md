@@ -9,6 +9,7 @@ A modern web application for analyzing the performance of your Bitcoin investmen
 - Calculate key metrics (total BTC, current value, profit/loss)
 - Visualize purchase history and portfolio value over time
 - Show detailed transaction history with current value and ROI
+- Multiple currency support for global users
 - Dark/Light mode toggle
 - Private analysis (all processing happens in your browser)
 

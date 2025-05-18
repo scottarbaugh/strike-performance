@@ -202,6 +202,20 @@ button:disabled {
   transition: opacity 0.3s ease;
 }
 
+/* Currency selector info icon hover effect */
+#currency-selector ~ i.fa-info-circle {
+  transition: color 0.2s ease;
+}
+
+#currency-selector ~ i.fa-info-circle:hover {
+  color: #60a5fa;
+}
+
+/* Simple tooltip styling - we'll use the browser's native tooltip */
+.fa-info-circle {
+  cursor: help;
+}
+
 /* Responsive adjustments */
 @media (max-width: 640px) {
   #results-section .grid {

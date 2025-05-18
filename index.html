@@ -126,7 +126,15 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <h2 class="text-lg font-semibold">Current Bitcoin Price</h2>
-                        <p class="text-xs opacity-75">Last updated: <span id="price-update-time"></span></p>
+                        <div class="flex items-center">
+                            <p class="text-xs opacity-75 mr-3">Last updated: <span id="price-update-time"></span></p>
+                            <div class="flex items-center">
+                                <select id="currency-selector" class="text-xs bg-blue-500 text-white px-2 py-1 rounded border border-blue-400">
+                                    <!-- Currency options will be added via JavaScript -->
+                                </select>
+                                <i class="fas fa-info-circle ml-1 text-blue-300 cursor-help" title="Choose the currency that was used in your CSV file, specifically the last 'Exchange rate' column"></i>
+                            </div>
+                        </div>
                     </div>
                     <div class="text-right">
                         <span id="current-btc-price" class="text-2xl font-bold"></span>
@@ -163,7 +171,7 @@
                 </div>
                 
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total Invested (Exchange Only)</h3>
+                    <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total Invested (Exchange Only) <span class="currency-label">USD</span></h3>
                     <div class="flex items-end">
                         <span id="total-invested" class="text-2xl font-bold text-gray-800 dark:text-white"></span>
                     </div>
@@ -177,7 +185,7 @@
                 </div>
                 
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                    <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total Profit/Loss (Exchange Only)</h3>
+                    <h3 class="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">Total Profit/Loss (Exchange Only) <span class="currency-label">USD</span></h3>
                     <div class="flex items-end">
                         <span id="total-profit" class="text-2xl font-bold"></span>
                         <span id="profit-percentage" class="ml-2 text-sm"></span>
@@ -269,8 +277,8 @@
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">BTC Amount</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price at Purchase (USD)</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">USD Invested</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price at Purchase <span class="currency-label">(USD)</span></th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"><span class="currency-label">USD</span> Invested</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Value</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Profit/Loss</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ROI</th>
@@ -340,6 +348,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="data/currencies.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

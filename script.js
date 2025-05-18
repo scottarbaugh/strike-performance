@@ -1,5 +1,8 @@
 // Main JavaScript file for Strike BTC Performance Analyzer
 
+// SUPPORTED_CURRENCIES is loaded from currencies.js
+
+// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const dropArea = document.getElementById('drop-area');
@@ -15,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const themeToggle = document.getElementById('theme-toggle');
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const manualRefreshBtn = document.getElementById('manual-refresh');
+    const currencySelector = document.getElementById('currency-selector');
     
     // Donation elements
     const donateButton = document.getElementById('donate-button');
@@ -42,6 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let refreshing = false;
     let lastRefreshTime = null;
     let includeOnChain = true; // Always include on-chain transactions
+    let selectedCurrency = "USD"; // Default currency
+    let currencyRates = {}; // Exchange rates for different currencies
     const MANUAL_REFRESH_COOLDOWN = 120000; // 2 minute cooldown for manual refresh
     
     // Check for saved theme preference and apply it
@@ -56,6 +62,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Apply theme on page load
     applyTheme();
+    
+    // Initialize currency dropdown
+    initializeCurrencyDropdown();
+    
+    // Tooltips are handled via native browser functionality and CSS
     
     // Theme toggle functionality
     themeToggle.addEventListener('click', () => {
@@ -208,6 +219,9 @@ document.addEventListener('DOMContentLoaded', function() {
         hideError();
         
         try {
+            // Fetch exchange rates first
+            await fetchExchangeRates();
+            
             // Fetch current Bitcoin price
             currentBtcPrice = await fetchCurrentBtcPrice();
             
@@ -467,8 +481,16 @@ document.addEventListener('DOMContentLoaded', function() {
         resultsSection.classList.remove('hidden');
         resultsSection.classList.add('fade-in');
         
+        // Update currency display
+        updateCurrencyDisplay();
+        
         // Format and display the current price banner
         document.getElementById('current-btc-price').textContent = formatCurrency(btcPriceData.price);
+        
+        // Make sure currency selector has the right value
+        if (currencySelector) {
+            currencySelector.value = selectedCurrency;
+        }
         
         if (btcPriceData.isEstimated) {
             document.getElementById('price-update-time').textContent = "ESTIMATED PRICE";
@@ -610,10 +632,14 @@ document.addEventListener('DOMContentLoaded', function() {
             window.purchaseChart.destroy();
         }
         
+        // Find the currency object for proper display
+        const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                          { code: 'USD', symbol: '$' };
+                          
         // Create datasets
         const datasets = [
             {
-                label: 'BTC Price (Exchange)',
+                label: `BTC Price (Exchange) (${currencyObj.code})`,
                 data: exchangeTxs.map(tx => ({
                     x: tx.date instanceof Date ? tx.date : new Date(tx.date),
                     y: tx.exchangeRate
@@ -692,7 +718,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         position: 'left',
                         title: {
                             display: true,
-                            text: 'Price (USD)'
+                            text: `Price (${selectedCurrency})`
                         },
                         grid: {
                             borderDash: [2, 2]
@@ -729,6 +755,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (label) {
                                     label += ': ';
                                 }
+                                
+                                // Find the currency object for proper display
+                                const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                                                  { code: 'USD', symbol: '$' };
                                 
                                 if (context.dataset.label === 'BTC Price (Exchange)') {
                                     return label + formatCurrency(context.parsed.y);
@@ -798,9 +828,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Determine what datasets to show based on whether we include on-chain
         const datasets = [];
         
+        // Find the currency object for proper display
+        const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                          { code: 'USD', symbol: '$' };
+        
         // Always show investment line
         datasets.push({
-            label: 'Exchange-Only Investment',
+            label: `Exchange-Only Investment (${currencyObj.code})`,
             data: labels.map((label, i) => ({
                 x: label,
                 y: cumulativeInvestment[i]
@@ -815,7 +849,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Always show exchange-only value line
         datasets.push({
-            label: 'Exchange-Only Value',
+            label: `Exchange-Only Value (${currencyObj.code})`,
             data: labels.map((label, i) => ({
                 x: label,
                 y: exchangeOnlyValues[i]
@@ -831,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show on-chain value if we have any and it's enabled
         if (onChainTxs.length > 0 && includeOnChain) {
             datasets.push({
-                label: 'Total Value (incl. On-Chain)',
+                label: `Total Value (incl. On-Chain) (${currencyObj.code})`,
                 data: labels.map((label, i) => ({
                     x: label,
                     y: portfolioValues[i]
@@ -873,7 +907,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: 'Value (USD)'
+                            text: `Value (${selectedCurrency})`
                         },
                         grid: {
                             borderDash: [2, 2]
@@ -889,6 +923,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                     label += ': ';
                                 }
                                 label += formatCurrency(context.parsed.y);
+                                
+                                // Find the currency object for proper display
+                                const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                                                  { code: 'USD', symbol: '$' };
                                 
                                 // Different tooltip labels based on dataset
                                 if (context.dataset.label === 'Exchange-Only Value') {
@@ -946,6 +984,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const roi = tx.isOnChain ? 0 : (profitLoss / tx.usdInvested) * 100;
             
             // Create table cells with special handling for on-chain transactions
+            // Find the selected currency object for symbol display
+            const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                               { code: 'USD', symbol: '$' };
+            
             if (tx.isOnChain) {
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
@@ -972,15 +1014,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Utility functions
-    function formatCurrency(value) {
-        return new Intl.NumberFormat('en-US', { 
-            style: 'currency', 
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(value);
-    }
+    // This function is now overridden in the currency handling section above
+    // It will use the correct currency code and symbol based on user selection
     
     function formatDate(date, includeTime = false) {
         const options = { 
@@ -1017,6 +1052,153 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessageContainer.classList.add('hidden');
     }
     
+    // Currency handling functions
+    function initializeCurrencyDropdown() {
+        // Clear existing options
+        currencySelector.innerHTML = '';
+        
+        // Add options for each supported currency
+        SUPPORTED_CURRENCIES.forEach(currency => {
+            const option = document.createElement('option');
+            option.value = currency.code;
+            option.textContent = `${currency.code} (${currency.symbol})`;
+            currencySelector.appendChild(option);
+        });
+        
+        // Set default selection
+        currencySelector.value = selectedCurrency;
+        
+        // Add event listener for currency change
+        currencySelector.addEventListener('change', () => {
+            selectedCurrency = currencySelector.value;
+            // Find the selected currency object
+            const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency);
+            
+            // If we already have exchange rates and price data, update the UI immediately
+            if (Object.keys(currencyRates).length > 0 && currentBtcPrice) {
+                // Update UI with new currency
+                updateCurrencyDisplay();
+                
+                // If we have analysis results, update them with the new currency
+                if (analysisResults) {
+                    renderResults(analysisResults, currentBtcPrice);
+                }
+            } else {
+                // Otherwise, fetch exchange rates first
+                fetchExchangeRates().then(() => {
+                    if (currentBtcPrice) {
+                        updateCurrencyDisplay();
+                        if (analysisResults) {
+                            renderResults(analysisResults, currentBtcPrice);
+                        }
+                    }
+                });
+            }
+        });
+    }
+    
+    async function fetchExchangeRates() {
+        try {
+            // Use ExchangeRate-API for currency conversion (free tier)
+            const response = await fetch('https://open.er-api.com/v6/latest/USD');
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch exchange rates');
+            }
+            
+            const data = await response.json();
+            
+            // Store all exchange rates
+            currencyRates = data.rates;
+            
+            return currencyRates;
+        } catch (error) {
+            console.error('Error fetching exchange rates:', error);
+            showError('Error fetching exchange rates. Using estimated values.');
+            
+            // Fallback to some common exchange rates
+            currencyRates = {
+                USD: 1,
+                EUR: 0.9,
+                GBP: 0.8,
+                AUD: 1.5,
+                CAD: 1.35,
+                JPY: 110,
+                INR: 75
+            };
+            
+            return currencyRates;
+        }
+    }
+    
+    function convertCurrency(amountInUSD) {
+        // If the selected currency is USD or we don't have rates yet, return as is
+        if (selectedCurrency === 'USD' || !currencyRates[selectedCurrency]) {
+            return amountInUSD;
+        }
+        
+        // Convert USD amount to selected currency
+        return amountInUSD * currencyRates[selectedCurrency];
+    }
+    
+    function updateCurrencyDisplay() {
+        // Find the selected currency object
+        const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                           { code: 'USD', symbol: '$' };
+        
+        // Update all currency-related elements
+        const currencyLabels = document.querySelectorAll('.currency-label');
+        currencyLabels.forEach(label => {
+            label.textContent = currencyObj.code;
+        });
+        
+        // Update table headers for currency
+        const priceHeader = document.querySelector('th:nth-child(3)');
+        if (priceHeader) {
+            const currencyLabel = priceHeader.querySelector('.currency-label');
+            if (currencyLabel) {
+                currencyLabel.textContent = `(${currencyObj.code})`;
+            }
+        }
+        
+        const investedHeader = document.querySelector('th:nth-child(4)');
+        if (investedHeader) {
+            const currencyLabel = investedHeader.querySelector('.currency-label');
+            if (currencyLabel) {
+                currencyLabel.textContent = currencyObj.code;
+            }
+        }
+        
+        // Update charts if they exist
+        if (window.purchaseChart) {
+            window.purchaseChart.options.scales.y.title.text = `Price (${currencyObj.code})`;
+            window.purchaseChart.update();
+        }
+        
+        if (window.portfolioChart) {
+            window.portfolioChart.options.scales.y.title.text = `Value (${currencyObj.code})`;
+            window.portfolioChart.update();
+        }
+    }
+    
+    // Override formatCurrency to use the selected currency
+    function formatCurrency(value) {
+        // Convert the value from USD to selected currency
+        const convertedValue = convertCurrency(value);
+        
+        // Find the selected currency object
+        const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                           { code: 'USD', symbol: '$' };
+        
+        // Format based on currency code
+        return new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: currencyObj.code,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(convertedValue);
+    }
+    
     // Refresh functionality
     
     // Set the refresh rate based on API limits (CoinGecko has a rate limit)
@@ -1034,6 +1216,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Function to update the manual refresh button state
+    
     function updateManualRefreshButton() {
         // If auto-refresh is enabled, always disable the manual refresh button
         if (autoRefreshToggle.checked) {
@@ -1249,6 +1432,9 @@ document.addEventListener('DOMContentLoaded', function() {
         refreshIcon.classList.add('spin-animation');
         
         try {
+            // Fetch updated exchange rates
+            await fetchExchangeRates();
+            
             // Fetch updated Bitcoin price
             const updatedPrice = await fetchCurrentBtcPrice();
             
