@@ -60,13 +60,13 @@
                 <div class="text-gray-600 dark:text-gray-300 mb-4">
                     <ol class="list-decimal list-inside space-y-3">
                         <li>Login to <a href="https://dashboard.strike.me/" class="text-blue-500 hover:underline" target="_blank">https://dashboard.strike.me/</a></li>
-                        <li>Click "Activity" on the left sidebar</li>
-                        <li>Click "Generate report" button</li>
-                        <li>Choose "All transactions" in the dropdown</li>
-                        <li>Select "BTC" for the asset</li>
-                        <li>Enter your desired date range</li>
-                        <li>Click "Download"</li>
-                        <li>Upload the downloaded CSV file to this site for performance analysis</li>
+                        <li>Click <b>Activity</b> on the left sidebar</li>
+                        <li>Click <b>Generate report</b> button on the right</li>
+                        <li>Choose <b>All transactions</b> for the transaction type</li>
+                        <li>Choose <b>BTC</b> for the asset</li>
+                        <li>Enter your desired date range (choose the earliest and latest dates for a more-complete picture)</li>
+                        <li>Click <b>Download</b></li>
+                        <li>Upload the downloaded CSV file to this site</li>
                     </ol>
                 </div>
                 
@@ -132,7 +132,7 @@
                                 <select id="currency-selector" class="text-xs bg-blue-500 text-white px-2 py-1 rounded border border-blue-400">
                                     <!-- Currency options will be added via JavaScript -->
                                 </select>
-                                <i class="fas fa-info-circle ml-1 text-blue-300 cursor-help" title="Select the currency used in your CSV file's 'Exchange rate' column. The app assumes exchange rates and amounts in your CSV are already in this currency."></i>
+                                <i class="fas fa-info-circle ml-1 text-blue-300 cursor-help" title="Select the currency represented in your CSV file's last 'Exchange rate' column. This may correspond to the currency used in your last transaction."></i>
                             </div>
                         </div>
                     </div>
@@ -301,8 +301,13 @@
 
         <!-- Footer -->
         <footer class="mt-12 text-center text-sm text-gray-500 dark:text-gray-400">
-            <p>This app processes data locally in your browser. No data is sent to any server.</p>
-            <p class="mt-2">© 2025 Strike BTC Performance Analyzer</p>
+            <p>This site processes data locally in your browser. No data is sent to any server except to retrieve the current BTC price and currency rates.</p>
+            <p>This site is for informational purposes only. The information on our website is not financial advice, and you should not consider it to be financial advice.<p>
+            <p>I am not affiliated with Strike... I'm just a guy that loves their services.</p>
+            <p class="mt-2">© <span id="current-year"></span> Strike BTC Performance Analyzer</p>
+            <script>
+                document.getElementById('current-year').textContent = new Date().getFullYear();
+            </script>
         </footer>
     </div>
 
