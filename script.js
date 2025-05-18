@@ -469,9 +469,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Calculate current value based on the BTC amount and current price
+                // The btcAmount is the actual amount of BTC, and currentBtcPriceInSelectedCurrency is already in the selected currency
                 const calculatedCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
                 
                 // Calculate profit/loss and ROI
+                // usdInvested is actually in the selected currency (confusing variable name)
                 const calculatedProfitLoss = calculatedCurrentValue - usdInvested;
                 const calculatedROI = usdInvested > 0 ? (calculatedProfitLoss / usdInvested) * 100 : 0;
                 
@@ -646,18 +648,19 @@ document.addEventListener('DOMContentLoaded', function() {
             maximumFractionDigits: 2
         }).format(results.totalInvested);
         document.getElementById('total-invested').textContent = totalInvestedFormatted;
-        // Format current value - this should be converted based on current BTC price in selected currency
-        document.getElementById('current-value').textContent = formatCurrency(results.currentValue);
+        // Format current value directly - it's already in the selected currency
+        // (BTC amount × current BTC price in selected currency)
+        document.getElementById('current-value').textContent = formatDirectAmount(results.currentValue);
         
         // If we have on-chain BTC, show a breakdown for current value
         if (results.onChainBtc > 0 && results.includesOnChain) {
             const currentValueElement = document.getElementById('current-value');
-            const exchangeOnlyValue = formatCurrency(results.exchangeOnlyValue);
-            const onChainValue = formatCurrency(results.currentValue - results.exchangeOnlyValue);
+            const exchangeOnlyValue = formatDirectAmount(results.exchangeOnlyValue);
+            const onChainValue = formatDirectAmount(results.currentValue - results.exchangeOnlyValue);
             
             // Show the breakdown directly instead of using a tooltip
             currentValueElement.innerHTML = `
-                <span class="block">${formatCurrency(results.currentValue)}</span>
+                <span class="block">${formatDirectAmount(results.currentValue)}</span>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     <div>Exchange: ${exchangeOnlyValue}</div>
                     <div>On-Chain: ${onChainValue}</div>
@@ -1084,20 +1087,9 @@ document.addEventListener('DOMContentLoaded', function() {
                                     const profit = exchangeOnlyValues[context.dataIndex] - investment;
                                     const roi = investment > 0 ? (profit / investment) * 100 : 0;
                                     
-                                    // Format the investment and profit directly without conversion
-                                    const formattedInvestment = new Intl.NumberFormat('en-US', { 
-                                        style: 'currency', 
-                                        currency: currencyObj.code,
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    }).format(investment);
-                                    
-                                    const formattedProfit = new Intl.NumberFormat('en-US', { 
-                                        style: 'currency', 
-                                        currency: currencyObj.code,
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    }).format(profit);
+                                    // Format the investment and profit directly - both values are already in the selected currency
+                                    const formattedInvestment = formatDirectAmount(investment);
+                                    const formattedProfit = formatDirectAmount(profit);
                                     
                                     // Calculate ROI directly: (current_value - invested) / invested * 100
                                     // Both current_value and invested are already in the selected currency
