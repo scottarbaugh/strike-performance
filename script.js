@@ -252,8 +252,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function fetchCurrentBtcPrice() {
         try {
-            // Try primary CoinGecko API
-            const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true');
+            // Determine which currency to fetch based on selection
+            const vsCurrency = selectedCurrency.toLowerCase();
+            
+            // Always also request USD price as a fallback
+            // Try primary CoinGecko API with selected currency
+            const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${vsCurrency},usd&include_24hr_change=true&include_last_updated_at=true`);
             
             if (!response.ok) {
                 throw new Error('Primary API request failed');
@@ -261,36 +265,122 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             
-            return {
-                price: data.bitcoin.usd,
-                change24h: data.bitcoin.usd_24h_change,
-                lastUpdated: new Date(data.bitcoin.last_updated_at * 1000)
-            };
+            // First make sure we have the exchange rates for conversion
+            if (Object.keys(currencyRates).length === 0) {
+                await fetchExchangeRates();
+            }
+            
+            // Check if we got the price in the selected currency directly
+            if (data.bitcoin[vsCurrency]) {
+                return {
+                    price: data.bitcoin[vsCurrency],
+                    change24h: data.bitcoin[`${vsCurrency}_24h_change`] || data.bitcoin.usd_24h_change,
+                    lastUpdated: new Date(data.bitcoin.last_updated_at * 1000),
+                    sourceType: 'direct' // Flag indicating this price came directly from the API
+                };
+            } else {
+                // If not available in the selected currency, use USD price and convert
+                const usdPrice = data.bitcoin.usd;
+                const convertedPrice = usdPrice * (currencyRates[selectedCurrency] || 1);
+                
+                return {
+                    price: convertedPrice,
+                    change24h: data.bitcoin.usd_24h_change,
+                    lastUpdated: new Date(data.bitcoin.last_updated_at * 1000),
+                    sourceType: 'converted' // Flag indicating this price was converted from USD
+                };
+            }
         } catch (primaryError) {
             console.error('Error fetching BTC price from primary API:', primaryError);
             
             try {
-                // Fallback to alternative API
-                const fallbackResponse = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+                // Make sure we have currency rates for conversion
+                if (Object.keys(currencyRates).length === 0) {
+                    await fetchExchangeRates();
+                }
                 
-                if (!fallbackResponse.ok) {
+                // Fallback to alternative API - try to get the price in the selected currency
+                let fallbackUrl = 'https://api.coinbase.com/v2/prices/BTC-USD/spot';
+                
+                // If not USD, try to fetch the price in selected currency directly
+                const directCurrencySupported = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'].includes(selectedCurrency);
+                if (directCurrencySupported) {
+                    fallbackUrl = `https://api.coinbase.com/v2/prices/BTC-${selectedCurrency}/spot`;
+                }
+                
+                const fallbackResponse = await fetch(fallbackUrl);
+                
+                if (!fallbackResponse.ok && directCurrencySupported) {
+                    // If the selected currency isn't available directly, fall back to USD and convert
+                    const usdFallbackResponse = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+                    if (!usdFallbackResponse.ok) {
+                        throw new Error('Fallback API request failed');
+                    }
+                    
+                    const usdFallbackData = await usdFallbackResponse.json();
+                    const usdPrice = parseFloat(usdFallbackData.data.amount);
+                    
+                    // Convert using our exchange rates
+                    return {
+                        price: usdPrice * (currencyRates[selectedCurrency] || 1),
+                        change24h: 0, // Fallback doesn't provide 24h change
+                        lastUpdated: new Date(),
+                        sourceType: 'converted'
+                    };
+                } else if (!fallbackResponse.ok) {
                     throw new Error('Fallback API request failed');
                 }
                 
                 const fallbackData = await fallbackResponse.json();
                 
-                return {
-                    price: parseFloat(fallbackData.data.amount),
-                    change24h: 0, // Fallback doesn't provide 24h change
-                    lastUpdated: new Date()
-                };
+                if (!directCurrencySupported) {
+                    // We got USD price, need to convert to selected currency
+                    const usdPrice = parseFloat(fallbackData.data.amount);
+                    return {
+                        price: usdPrice * (currencyRates[selectedCurrency] || 1),
+                        change24h: 0, // Fallback doesn't provide 24h change
+                        lastUpdated: new Date(),
+                        sourceType: 'converted'
+                    };
+                } else {
+                    // Direct price in selected currency
+                    return {
+                        price: parseFloat(fallbackData.data.amount),
+                        change24h: 0, // Fallback doesn't provide 24h change
+                        lastUpdated: new Date(),
+                        sourceType: 'direct'
+                    };
+                }
             } catch (fallbackError) {
                 console.error('Error fetching BTC price from fallback API:', fallbackError);
                 
                 // Last resort - use a hardcoded recent price with warning
                 showError('Warning: Using estimated Bitcoin price. Could not connect to price APIs.');
+                
+                // Make sure we have exchange rates for conversion
+                if (Object.keys(currencyRates).length === 0) {
+                    // Fallback rates if we can't fetch exchange rates
+                    currencyRates = {
+                        USD: 1,
+                        EUR: 0.91,
+                        GBP: 0.78,
+                        AUD: 1.51,
+                        CAD: 1.36,
+                        JPY: 155.2,
+                        INR: 83.52
+                    };
+                }
+                
+                // Use hardcoded USD price and convert if needed
+                let estimatedPrice = 104000; // Fallback price in USD (update this to a recent value)
+                
+                // Convert to selected currency if needed
+                if (selectedCurrency !== 'USD') {
+                    estimatedPrice = estimatedPrice * (currencyRates[selectedCurrency] || 1);
+                }
+                
                 return {
-                    price: 104000, // Fallback price (update this to a recent value)
+                    price: estimatedPrice,
                     change24h: 0,
                     lastUpdated: new Date(),
                     isEstimated: true
@@ -335,6 +425,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let bestPurchaseIndex = -1;
         let onChainBtc = 0; // Track on-chain BTC separately
         
+        // Store the current BTC price in the selected currency for calculations
+        const currentBtcPriceInSelectedCurrency = currentPrice;
+        
         // Process each transaction
         transactions.forEach((tx, index) => {
             const btcAmount = parseFloat(tx.Amount);
@@ -345,6 +438,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 onChainBtc += btcAmount;
                 cumulativeBtc += btcAmount;
                 
+                // Calculate current value for on-chain transactions
+                const calculatedOnChainCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
+                
                 // Add to history with special on-chain flag
                 purchaseHistory.push({
                     date: new Date(tx['Time (UTC)']),
@@ -353,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     exchangeRate: 0, // No exchange rate for on-chain
                     usdInvested: 0, // No USD invested for on-chain
                     cumulativeBtc,
-                    currentValue: btcAmount * currentPrice,
+                    currentValue: calculatedOnChainCurrentValue,
                     profitLoss: 0, // Can't calculate profit/loss for on-chain
                     roi: 0 // Can't calculate ROI for on-chain
                 });
@@ -372,6 +468,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     bestPurchaseIndex = index;
                 }
                 
+                // Calculate current value based on the BTC amount and current price
+                const calculatedCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
+                
+                // Calculate profit/loss and ROI
+                const calculatedProfitLoss = calculatedCurrentValue - usdInvested;
+                const calculatedROI = usdInvested > 0 ? (calculatedProfitLoss / usdInvested) * 100 : 0;
+                
                 // Build purchase history for charts
                 purchaseHistory.push({
                     date: new Date(tx['Time (UTC)']),
@@ -380,9 +483,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     exchangeRate,
                     usdInvested,
                     cumulativeBtc,
-                    currentValue: btcAmount * currentPrice,
-                    profitLoss: (btcAmount * currentPrice) - usdInvested,
-                    roi: ((btcAmount * currentPrice) - usdInvested) / usdInvested * 100
+                    currentValue: calculatedCurrentValue,
+                    profitLoss: calculatedProfitLoss,
+                    roi: calculatedROI
                 });
             }
         });
@@ -390,9 +493,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate total BTC with or without on-chain
         const totalBtcWithOnChain = totalBtc + onChainBtc;
         
-        // Calculate current portfolio value
-        const currentValue = totalBtc * currentPrice;
-        const currentValueWithOnChain = totalBtcWithOnChain * currentPrice;
+        // Calculate current portfolio value using the current BTC price in selected currency
+        const currentValue = totalBtc * currentBtcPriceInSelectedCurrency;
+        const currentValueWithOnChain = totalBtcWithOnChain * currentBtcPriceInSelectedCurrency;
         
         // Always calculate profit/loss based on exchange-only transactions, regardless of toggle state
         const totalProfit = currentValue - totalInvested;
@@ -485,7 +588,8 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCurrencyDisplay();
         
         // Format and display the current price banner
-        document.getElementById('current-btc-price').textContent = formatCurrency(btcPriceData.price);
+        // Format directly without conversion since price is already in selected currency
+        document.getElementById('current-btc-price').textContent = formatDirectAmount(btcPriceData.price);
         
         // Make sure currency selector has the right value
         if (currencySelector) {
@@ -534,7 +638,15 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         }
         
-        document.getElementById('total-invested').textContent = formatCurrency(results.totalInvested);
+        // Format the total invested directly without conversion
+        const totalInvestedFormatted = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: selectedCurrency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(results.totalInvested);
+        document.getElementById('total-invested').textContent = totalInvestedFormatted;
+        // Format current value - this should be converted based on current BTC price in selected currency
         document.getElementById('current-value').textContent = formatCurrency(results.currentValue);
         
         // If we have on-chain BTC, show a breakdown for current value
@@ -557,7 +669,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const profitPercentageElement = document.getElementById('profit-percentage');
         
         // Always show the exchange-only profit/loss, regardless of on-chain toggle
-        totalProfitElement.textContent = formatCurrency(results.totalProfit);
+        // Format directly without conversion
+        const totalProfitFormatted = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: selectedCurrency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(results.totalProfit);
+        
+        totalProfitElement.textContent = totalProfitFormatted;
         profitPercentageElement.textContent = `(${results.totalRoi.toFixed(2)}%)`;
         
         if (results.totalProfit >= 0) {
@@ -569,8 +689,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Additional metrics
-        document.getElementById('avg-purchase-price').textContent = formatCurrency(results.avgPurchasePrice);
-        document.getElementById('best-purchase').textContent = formatCurrency(results.bestPurchaseRate);
+        // Format average purchase price and best purchase directly (no conversion)
+        const avgPurchasePriceFormatted = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: selectedCurrency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(results.avgPurchasePrice);
+        
+        const bestPurchaseRateFormatted = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: selectedCurrency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(results.bestPurchaseRate);
+        
+        document.getElementById('avg-purchase-price').textContent = avgPurchasePriceFormatted;
+        document.getElementById('best-purchase').textContent = bestPurchaseRateFormatted;
         document.getElementById('first-purchase-date').textContent = formatDate(new Date(results.firstPurchaseDate));
         document.getElementById('latest-purchase-date').textContent = formatDate(new Date(results.latestPurchaseDate));
         
@@ -585,7 +720,15 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('total-purchases').textContent = results.transactionCount;
         }
         
-        document.getElementById('avg-purchase-amount').textContent = formatCurrency(results.avgPurchaseAmount);
+        // Format average purchase amount directly (no conversion)
+        const avgPurchaseAmountFormatted = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: selectedCurrency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(results.avgPurchaseAmount);
+        
+        document.getElementById('avg-purchase-amount').textContent = avgPurchaseAmountFormatted;
         document.getElementById('consistency-score').textContent = `${results.consistencyScore}/100`;
         
         const dcaVsLumpElement = document.getElementById('dca-vs-lump');
@@ -760,8 +903,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
                                                   { code: 'USD', symbol: '$' };
                                 
-                                if (context.dataset.label === 'BTC Price (Exchange)') {
-                                    return label + formatCurrency(context.parsed.y);
+                                if (context.dataset.label.includes('BTC Price (Exchange)')) {
+                                    // Don't convert exchange rate - format directly with the currency symbol
+                                    return label + new Intl.NumberFormat('en-US', { 
+                                        style: 'currency', 
+                                        currency: currencyObj.code,
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }).format(context.parsed.y);
                                 } else if (context.dataset.label === 'BTC Amount (On-Chain)') {
                                     return `${label}${context.parsed.y.toFixed(8)} BTC`;
                                 } else {
@@ -929,18 +1078,37 @@ document.addEventListener('DOMContentLoaded', function() {
                                                   { code: 'USD', symbol: '$' };
                                 
                                 // Different tooltip labels based on dataset
-                                if (context.dataset.label === 'Exchange-Only Value') {
+                                if (context.dataset.label.includes('Exchange-Only Value')) {
                                     const investment = cumulativeInvestment[context.dataIndex];
                                     const exchangeBtc = exchangeOnlyBtc[context.dataIndex];
                                     const profit = exchangeOnlyValues[context.dataIndex] - investment;
                                     const roi = investment > 0 ? (profit / investment) * 100 : 0;
                                     
+                                    // Format the investment and profit directly without conversion
+                                    const formattedInvestment = new Intl.NumberFormat('en-US', { 
+                                        style: 'currency', 
+                                        currency: currencyObj.code,
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }).format(investment);
+                                    
+                                    const formattedProfit = new Intl.NumberFormat('en-US', { 
+                                        style: 'currency', 
+                                        currency: currencyObj.code,
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }).format(profit);
+                                    
+                                    // Calculate ROI directly: (current_value - invested) / invested * 100
+                                    // Both current_value and invested are already in the selected currency
+                                    const directRoi = (exchangeOnlyValues[context.dataIndex] - investment) / investment * 100;
+                                    
                                     return [
                                         label,
-                                        `Profit/Loss: ${formatCurrency(profit)} (${roi.toFixed(2)}%)`
+                                        `Profit/Loss: ${formattedProfit} (${directRoi.toFixed(2)}%)`
                                     ];
                                 }
-                                else if (context.dataset.label === 'Total Value (incl. On-Chain)') {
+                                else if (context.dataset.label.includes('Total Value (incl. On-Chain)')) {
                                     const totalBtc = cumulativeBtc[context.dataIndex];
                                     const exchangeBtc = exchangeOnlyBtc[context.dataIndex];
                                     const onChainBtc = totalBtc - exchangeBtc;
@@ -979,9 +1147,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.classList.add('bg-blue-50', 'dark:bg-blue-900', 'dark:bg-opacity-20');
             }
             
-            // Calculate profit/loss for this transaction (not applicable for on-chain)
-            const profitLoss = tx.isOnChain ? 0 : tx.currentValue - tx.usdInvested;
-            const roi = tx.isOnChain ? 0 : (profitLoss / tx.usdInvested) * 100;
+            // Use the pre-calculated values from the transaction data
+            // These values were calculated correctly in calculatePerformance
+            const currentValue = tx.currentValue;
+            const profitLoss = tx.profitLoss;
+            const roi = tx.roi;
             
             // Create table cells with special handling for on-chain transactions
             // Find the selected currency object for symbol display
@@ -994,18 +1164,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 italic">On-Chain Transfer</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.currentValue)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDirectAmount(tx.currentValue)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
                 `;
             } else {
+                // Format exchange rate directly without conversion - assumes it's already in selected currency
+                const formattedExchangeRate = new Intl.NumberFormat('en-US', { 
+                    style: 'currency', 
+                    currency: currencyObj.code,
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(tx.exchangeRate);
+                
+                // Format invested amount directly without conversion
+                const formattedUsdInvested = new Intl.NumberFormat('en-US', { 
+                    style: 'currency', 
+                    currency: currencyObj.code,
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(tx.usdInvested);
+                
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.exchangeRate)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.usdInvested)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatCurrency(tx.currentValue)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm ${profitLoss >= 0 ? 'profit' : 'loss'}">${formatCurrency(profitLoss)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formattedExchangeRate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formattedUsdInvested}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDirectAmount(currentValue)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${profitLoss >= 0 ? 'profit' : 'loss'}">${formatDirectAmount(profitLoss)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm ${roi >= 0 ? 'profit' : 'loss'}">${roi.toFixed(2)}%</td>
                 `;
             }
@@ -1014,8 +1200,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // This function is now overridden in the currency handling section above
-    // It will use the correct currency code and symbol based on user selection
+    // Format a value directly in the selected currency without conversion
+    // Used for values that are already in the selected currency
+    function formatDirectAmount(value) {
+        // Find the selected currency object
+        const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
+                         { code: 'USD', symbol: '$' };
+        
+        // Format based on currency code
+        return new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: currencyObj.code,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value);
+    }
     
     function formatDate(date, includeTime = false) {
         const options = { 
@@ -1069,30 +1268,39 @@ document.addEventListener('DOMContentLoaded', function() {
         currencySelector.value = selectedCurrency;
         
         // Add event listener for currency change
-        currencySelector.addEventListener('change', () => {
+        currencySelector.addEventListener('change', async () => {
             selectedCurrency = currencySelector.value;
             // Find the selected currency object
             const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency);
             
-            // If we already have exchange rates and price data, update the UI immediately
-            if (Object.keys(currencyRates).length > 0 && currentBtcPrice) {
-                // Update UI with new currency
-                updateCurrencyDisplay();
+            // First update the UI currency labels
+            updateCurrencyDisplay();
+            
+            try {
+                // Always fetch exchange rates when currency changes
+                await fetchExchangeRates();
                 
-                // If we have analysis results, update them with the new currency
-                if (analysisResults) {
-                    renderResults(analysisResults, currentBtcPrice);
-                }
-            } else {
-                // Otherwise, fetch exchange rates first
-                fetchExchangeRates().then(() => {
-                    if (currentBtcPrice) {
-                        updateCurrencyDisplay();
-                        if (analysisResults) {
-                            renderResults(analysisResults, currentBtcPrice);
-                        }
+                // Then fetch the bitcoin price in the new currency
+                if (csvData && analysisResults) {
+                    // Show loading indicator for price update
+                    document.getElementById('current-btc-price').innerHTML = '<span class="animate-pulse">Updating...</span>';
+                    
+                    // Fetch new BTC price and update analysis
+                    const updatedPrice = await fetchCurrentBtcPrice();
+                    if (updatedPrice) {
+                        currentBtcPrice = updatedPrice;
+                        
+                        // Recalculate analysis with new price
+                        // This function handles all the currency conversion internally
+                        updateAnalysisWithNewPrice(currentBtcPrice.price);
+                        
+                        // Re-render results with updated data
+                        renderResults(analysisResults, currentBtcPrice);
                     }
-                });
+                }
+            } catch (error) {
+                console.error('Error updating currency:', error);
+                showError(`Error updating to ${selectedCurrency}: ${error.message}`);
             }
         });
     }
@@ -1141,6 +1349,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return amountInUSD * currencyRates[selectedCurrency];
     }
     
+    // This function is intentionally separate from formatDirectAmount
+    // Use this when you need to convert from USD to the selected currency
+    // Use formatDirectAmount when values are already in the selected currency
+    
     function updateCurrencyDisplay() {
         // Find the selected currency object
         const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
@@ -1182,8 +1394,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Override formatCurrency to use the selected currency
+    // This is used for values that need to be converted (not for direct CSV values)
     function formatCurrency(value) {
         // Convert the value from USD to selected currency
+        // Note: This is only for values derived from the current bitcoin price
+        // The exchange rates and invested amounts in the CSV are assumed to be already in the selected currency
         const convertedValue = convertCurrency(value);
         
         // Find the selected currency object
@@ -1483,14 +1698,22 @@ document.addEventListener('DOMContentLoaded', function() {
         analysisResults.exchangeOnlyValue = exchangeOnlyBtc * newPrice;
         
         // Update profit/loss - always uses exchange-only transactions
+        // These values are already in the selected currency
+        // The exchange rates from CSV are in selected currency
+        // The current bitcoin price is fetched/converted to selected currency
         analysisResults.totalProfit = analysisResults.exchangeOnlyValue - totalInvested;
-        analysisResults.totalRoi = (analysisResults.totalProfit / totalInvested) * 100;
+        analysisResults.totalRoi = totalInvested > 0 ? (analysisResults.totalProfit / totalInvested) * 100 : 0;
         
         // Update each transaction's current value, profit/loss, and ROI
         analysisResults.transactions.forEach(tx => {
+            // Calculate current value for each transaction
             tx.currentValue = tx.btcAmount * newPrice;
-            tx.profitLoss = tx.currentValue - tx.usdInvested;
-            tx.roi = (tx.profitLoss / tx.usdInvested) * 100;
+            
+            // Only calculate profit/loss and ROI for exchange transactions
+            if (!tx.isOnChain) {
+                tx.profitLoss = tx.currentValue - tx.usdInvested;
+                tx.roi = tx.usdInvested > 0 ? (tx.profitLoss / tx.usdInvested) * 100 : 0;
+            }
         });
     }
 });
