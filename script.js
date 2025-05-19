@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('price-update-time').textContent = "ESTIMATED PRICE";
             document.getElementById('price-update-time').classList.add('text-yellow-400');
         } else {
-            document.getElementById('price-update-time').textContent = formatDate(btcPriceData.lastUpdated, true);
+            document.getElementById('price-update-time').textContent = formatDate(btcPriceData.lastUpdated, true, true) + " (Local)";
             document.getElementById('price-update-time').classList.remove('text-yellow-400');
         }
         
@@ -1531,7 +1531,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }).format(value);
     }
     
-    function formatDate(date, includeTime = false) {
+    function formatDate(date, includeTime = false, useLocalTime = false) {
         // Make sure date is a valid Date object
         if (!(date instanceof Date) || isNaN(date.getTime())) {
             try {
@@ -1545,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', function() {
             year: 'numeric', 
             month: 'short', 
             day: 'numeric',
-            timeZone: 'UTC'
+            timeZone: useLocalTime ? undefined : 'UTC' // Use local timezone if requested
         };
         
         if (includeTime) {
@@ -1562,7 +1562,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const timeOptions = {
                 hour: '2-digit',
                 minute: '2-digit',
-                timeZone: 'UTC',
+                timeZone: useLocalTime ? undefined : 'UTC',
                 hour12: true
             };
             const timeString = new Intl.DateTimeFormat('en-US', timeOptions).format(date);
