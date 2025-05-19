@@ -1531,10 +1531,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const displaySeconds = Math.min(secondsToNextRefresh, Math.floor(REFRESH_INTERVAL / 1000));
                 
                 manualRefreshBtn.title = `Auto and manual refreshing is limited to once every two minutes. Auto-refresh in ${displaySeconds}s`;
-                manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> ${displaySeconds}s`;
+                manualRefreshBtn.innerHTML = `<i class="fas fa-clock"></i><span>${displaySeconds}s</span>`;
             } else {
                 manualRefreshBtn.title = "Auto and manual refreshing is limited to once every two minutes. Auto-refresh is enabled";
-                manualRefreshBtn.innerHTML = '<i class="fas fa-clock mr-1"></i> Auto';
+                manualRefreshBtn.innerHTML = '<i class="fas fa-clock"></i><span>Auto</span>';
             }
             return;
         }
@@ -1543,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!lastRefreshTime) {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Auto and manual refreshing is limited to once every two minutes.";
-            manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
+            manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i><span>Refresh</span>';
             return;
         }
         
@@ -1554,11 +1554,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const secondsRemaining = Math.ceil((MANUAL_REFRESH_COOLDOWN - timeSinceLastRefresh) / 1000);
             manualRefreshBtn.disabled = true;
             manualRefreshBtn.title = `Please wait ${secondsRemaining} seconds before refreshing again`;
-            manualRefreshBtn.innerHTML = `<i class="fas fa-clock mr-1"></i> ${secondsRemaining}s`;
+            manualRefreshBtn.innerHTML = `<i class="fas fa-clock"></i><span>${secondsRemaining}s</span>`;
         } else {
             manualRefreshBtn.disabled = false;
             manualRefreshBtn.title = "Auto and manual refreshing is limited to once every two minutes.";
-            manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
+            manualRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i><span>Refresh</span>';
         }
     }
     

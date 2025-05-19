@@ -53,6 +53,31 @@ html {
   height: 8px;
 }
 
+/* Fixed width for the manual refresh button */
+#manual-refresh {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+  text-align: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+/* Ensure button content is properly aligned */
+#manual-refresh i, 
+#manual-refresh span {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+#manual-refresh i {
+  margin-right: 0.25rem;
+  width: 1rem;
+  text-align: center;
+}
+
 ::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
@@ -159,6 +184,10 @@ button:disabled {
   transition: all 0.3s ease;
   /* Ensure tooltip still works on disabled buttons */
   pointer-events: auto;
+  /* Preserve button width when disabled */
+  width: inherit;
+  min-width: inherit;
+  max-width: inherit;
 }
 
 /* Refresh button animation */
