@@ -167,6 +167,17 @@ tbody tr:hover {
   transition: all 0.3s ease-in-out;
 }
 
+/* Toggle switch styling for auto-refresh and exclude on-chain */
+#auto-refresh-toggle:checked ~ .dot,
+#exclude-onchain-toggle:checked ~ .dot {
+  transform: translateX(100%);
+}
+
+#auto-refresh-toggle:checked ~ .block,
+#exclude-onchain-toggle:checked ~ .block {
+  background-color: #3B82F6;
+}
+
 /* Price banner sticky styles */
 #price-banner {
   transition: background-color 0.3s ease, box-shadow 0.3s ease;

@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
     const manualRefreshBtn = document.getElementById('manual-refresh');
     const currencySelector = document.getElementById('currency-selector');
+    const excludeOnChainToggle = document.getElementById('exclude-onchain-toggle');
     
     // Donation elements
     const donateButton = document.getElementById('donate-button');
@@ -97,6 +98,26 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize currency dropdown
     initializeCurrencyDropdown();
+    
+    // Exclude on-chain toggle functionality
+    if (excludeOnChainToggle) {
+        excludeOnChainToggle.addEventListener('change', () => {
+            includeOnChain = !excludeOnChainToggle.checked;
+            
+            // Remember preference
+            localStorage.setItem('excludeOnChain', excludeOnChainToggle.checked ? 'true' : 'false');
+            
+            // Re-render transactions table if we have data
+            if (cachedTransactions && currentBtcPrice) {
+                renderTransactionsTable(cachedTransactions, currentBtcPrice.price);
+            }
+        });
+        
+        // Load saved preference
+        const savedExcludeOnChain = localStorage.getItem('excludeOnChain') === 'true';
+        excludeOnChainToggle.checked = savedExcludeOnChain;
+        includeOnChain = !savedExcludeOnChain;
+    }
     
     // Tooltips are handled via native browser functionality and CSS
     

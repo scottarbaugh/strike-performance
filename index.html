@@ -272,9 +272,19 @@
 
             <!-- Transaction Table -->
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden mb-8">
-                <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300">Transaction History</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Detailed view of all your Bitcoin purchases</p>
+                <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-700 dark:text-gray-300">Transaction History</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Detailed view of all your Bitcoin purchases</p>
+                    </div>
+                    <div class="flex items-center">
+                        <label for="exclude-onchain-toggle" class="text-sm text-gray-600 dark:text-gray-400 mr-2">Exclude On-Chain:</label>
+                        <label class="relative inline-block w-10 align-middle select-none cursor-pointer">
+                            <input type="checkbox" id="exclude-onchain-toggle" class="sr-only" />
+                            <div class="block bg-gray-400 w-10 h-6 rounded-full"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                        </label>
+                    </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
