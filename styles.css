@@ -181,10 +181,32 @@ tbody tr:hover {
 /* Price banner sticky styles */
 #price-banner {
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.1);
 }
 
-#price-banner.sticky {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+/* Enhanced shadow effect when scrolling */
+#price-banner:after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 10px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), transparent);
+  pointer-events: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Dark mode specific shadow */
+.dark #price-banner {
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.25);
+}
+
+.dark #price-banner:after {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), transparent);
 }
 
 /* Disabled button styles */
