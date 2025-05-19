@@ -1,7 +1,7 @@
 // Main JavaScript file for Strike BTC Performance Analyzer
 
 // App version for cache busting
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 
 // SUPPORTED_CURRENCIES is loaded from currencies.js
 
