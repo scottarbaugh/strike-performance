@@ -703,17 +703,27 @@ document.addEventListener('DOMContentLoaded', function() {
         // On-chain transactions are now always included
         
         // Summary cards
-        document.getElementById('total-btc').textContent = results.totalBtc.toFixed(8);
+        const totalBtcElement = document.getElementById('total-btc');
+        totalBtcElement.textContent = results.totalBtc.toFixed(8);
+        
+        // If exclude on-chain is enabled, use larger font size to match total invested
+        // Otherwise use default size since it's showing combined value
+        if (excludeOnChainToggle && excludeOnChainToggle.checked) {
+            totalBtcElement.classList.add('text-4xl');
+            totalBtcElement.classList.remove('text-2xl');
+        } else {
+            totalBtcElement.classList.add('text-2xl');
+            totalBtcElement.classList.remove('text-4xl');
+        }
         
         // If we have on-chain BTC, show a breakdown
         if (results.onChainBtc > 0 && results.includesOnChain) {
-            const totalBtcElement = document.getElementById('total-btc');
             const exchangeOnly = results.exchangeOnlyBtc.toFixed(8);
             const onChainOnly = results.onChainBtc.toFixed(8);
             
             // Show the breakdown directly instead of using a tooltip
             totalBtcElement.innerHTML = `
-                <span class="block">${results.totalBtc.toFixed(8)}</span>
+                <span class="block ${excludeOnChainToggle && excludeOnChainToggle.checked ? 'text-4xl' : 'text-2xl'} font-bold">${results.totalBtc.toFixed(8)}</span>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     <div>Exchange: ${exchangeOnly}</div>
                     <div>On-Chain: ${onChainOnly}</div>
@@ -731,17 +741,27 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('total-invested').textContent = totalInvestedFormatted;
         // Format current value directly - it's already in the selected currency
         // (BTC amount × current BTC price in selected currency)
-        document.getElementById('current-value').textContent = formatDirectAmount(results.currentValue);
+        const currentValueElement = document.getElementById('current-value');
+        currentValueElement.textContent = formatDirectAmount(results.currentValue);
+        
+        // If exclude on-chain is enabled, use larger font size to match total invested
+        // Otherwise use default size since it's showing combined value
+        if (excludeOnChainToggle && excludeOnChainToggle.checked) {
+            currentValueElement.classList.add('text-4xl');
+            currentValueElement.classList.remove('text-2xl');
+        } else {
+            currentValueElement.classList.add('text-2xl');
+            currentValueElement.classList.remove('text-4xl');
+        }
         
         // If we have on-chain BTC, show a breakdown for current value
         if (results.onChainBtc > 0 && results.includesOnChain) {
-            const currentValueElement = document.getElementById('current-value');
             const exchangeOnlyValue = formatDirectAmount(results.exchangeOnlyValue);
             const onChainValue = formatDirectAmount(results.currentValue - results.exchangeOnlyValue);
             
             // Show the breakdown directly instead of using a tooltip
             currentValueElement.innerHTML = `
-                <span class="block">${formatDirectAmount(results.currentValue)}</span>
+                <span class="block ${excludeOnChainToggle && excludeOnChainToggle.checked ? 'text-4xl' : 'text-2xl'} font-bold">${formatDirectAmount(results.currentValue)}</span>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     <div>Exchange: ${exchangeOnlyValue}</div>
                     <div>On-Chain: ${onChainValue}</div>
