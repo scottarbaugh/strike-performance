@@ -815,7 +815,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }).format(results.bestPurchaseRate);
         
         document.getElementById('avg-purchase-price').textContent = avgPurchasePriceFormatted;
-        document.getElementById('best-purchase').textContent = bestPurchaseRateFormatted;
+        
+        // Get best purchase date from the transaction at bestPurchaseIndex
+        const bestPurchaseDate = results.bestPurchaseIndex >= 0 && results.bestPurchaseIndex < results.transactions.length 
+            ? formatDate(results.transactions[results.bestPurchaseIndex].date) 
+            : '';
+        
+        // Set best purchase price with date in parentheses
+        document.getElementById('best-purchase').innerHTML = bestPurchaseRateFormatted + 
+            (bestPurchaseDate ? ' <span class="text-xs text-gray-500 dark:text-gray-400">on ' + bestPurchaseDate + '</span>' : '');
+            
         document.getElementById('first-purchase-date').textContent = formatDate(new Date(results.firstPurchaseDate));
         document.getElementById('latest-purchase-date').textContent = formatDate(new Date(results.latestPurchaseDate));
         
