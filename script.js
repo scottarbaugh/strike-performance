@@ -109,7 +109,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Re-render transactions table if we have data
             if (cachedTransactions && currentBtcPrice) {
-                renderTransactionsTable(cachedTransactions, currentBtcPrice.price);
+                // Recalculate performance with the updated includeOnChain setting
+                if (csvData) {
+                    analysisResults = calculatePerformance(csvData, currentBtcPrice.price);
+                    renderResults(analysisResults, currentBtcPrice);
+                } else {
+                    renderTransactionsTable(cachedTransactions, currentBtcPrice.price);
+                }
             }
         });
         
@@ -272,6 +278,13 @@ document.addEventListener('DOMContentLoaded', function() {
         hideError();
         
         try {
+            // Make sure the saved preference is applied before analysis
+            if (excludeOnChainToggle) {
+                const savedExcludeOnChain = localStorage.getItem('excludeOnChain') === 'true';
+                excludeOnChainToggle.checked = savedExcludeOnChain;
+                includeOnChain = !savedExcludeOnChain;
+            }
+            
             // Fetch exchange rates first
             await fetchExchangeRates();
             
@@ -284,6 +297,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Process and analyze data
             analysisResults = calculatePerformance(csvData, currentBtcPrice.price);
+            
+            // Reset cachedTransactions to null to ensure fresh caching with all transactions
+            cachedTransactions = null;
             
             // Render results
             renderResults(analysisResults, currentBtcPrice);
@@ -806,6 +822,10 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPurchaseHistoryChart(results.transactions);
         renderPortfolioValueChart(results.transactions);
         
+        // Cache ALL transactions before rendering
+        // Important: Make sure we have ALL transactions with ALL properties correctly set
+        cachedTransactions = results.transactions;
+        
         // Render transactions table
         renderTransactionsTable(results.transactions, btcPriceData.price);
     }
@@ -1242,11 +1262,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let cachedTransactions = null;
     
     function renderTransactionsTable(transactions, currentPrice) {
-        // Cache the transactions for re-sorting
+        // Always update the cached transactions with the latest transactions
         cachedTransactions = transactions;
         
-        // Filter out on-chain transactions if not included
-        let displayTransactions = includeOnChain ? transactions : transactions.filter(tx => !tx.isOnChain);
+        // Filter out on-chain transactions if excludeOnChain is enabled
+        let displayTransactions = includeOnChain ? 
+            cachedTransactions : 
+            cachedTransactions.filter(tx => !tx.isOnChain);
         
         // Apply current sort
         const sortedTransactions = sortTransactions([...displayTransactions], currentSortColumn, currentSortDirection);
@@ -1286,17 +1308,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                { code: 'USD', symbol: '$' };
             
             if (tx.isOnChain) {
+                // On-chain transactions - use dashes for price at purchase, cost, profit/loss and ROI
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 italic">On-Chain Transfer</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDirectAmount(tx.currentValue)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDirectAmount(currentValue)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
                 `;
             } else {
-                // Format exchange rate directly without conversion - assumes it's already in selected currency
+                // Exchange transactions - show all values
                 const formattedExchangeRate = new Intl.NumberFormat('en-US', { 
                     style: 'currency', 
                     currency: currencyObj.code,
@@ -1304,7 +1327,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     maximumFractionDigits: 2
                 }).format(tx.exchangeRate);
                 
-                // Format invested amount directly without conversion
                 const formattedUsdInvested = new Intl.NumberFormat('en-US', { 
                     style: 'currency', 
                     currency: currencyObj.code,
