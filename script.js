@@ -79,9 +79,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let refreshing = false;
     let lastRefreshTime = null;
     let includeOnChain = true; // Always include on-chain transactions
-    let selectedCurrency = "USD"; // Default currency
+    let selectedCurrency = localStorage.getItem('selectedCurrency') || "USD"; // Load saved currency or default to USD
     let currencyRates = {}; // Exchange rates for different currencies
     const MANUAL_REFRESH_COOLDOWN = 120000; // 2 minute cooldown for manual refresh
+    const REFRESH_INTERVAL = 120000; // 120 seconds (2 minutes) to match API refresh rate
     
     // Check for saved theme preference and apply it
     function applyTheme() {
@@ -98,6 +99,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize currency dropdown
     initializeCurrencyDropdown();
+    
+    // Load auto-refresh toggle value from localStorage if available
+    if (autoRefreshToggle) {
+        const savedAutoRefresh = localStorage.getItem('autoRefresh') === 'true';
+        autoRefreshToggle.checked = savedAutoRefresh;
+        
+        // Start auto-refresh if enabled
+        if (savedAutoRefresh) {
+            startAutoRefresh();
+        }
+    }
     
     // Exclude on-chain toggle functionality
     if (excludeOnChainToggle) {
@@ -1562,12 +1574,15 @@ document.addEventListener('DOMContentLoaded', function() {
             currencySelector.appendChild(option);
         });
         
-        // Set default selection
+        // Set selection based on saved preference or default
         currencySelector.value = selectedCurrency;
         
         // Add event listener for currency change
         currencySelector.addEventListener('change', async () => {
             selectedCurrency = currencySelector.value;
+            // Save currency preference to localStorage
+            localStorage.setItem('selectedCurrency', selectedCurrency);
+            
             // Find the selected currency object
             const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency);
             
@@ -1714,9 +1729,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh functionality
     
-    // Set the refresh rate based on API limits (CoinGecko has a rate limit)
-    const REFRESH_INTERVAL = 120000; // 120 seconds (2 minutes) to match API refresh rate
-    
     // Manual refresh button
     manualRefreshBtn.addEventListener('click', function() {
         const now = Date.now();
@@ -1781,6 +1793,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-refresh toggle
     autoRefreshToggle.addEventListener('change', function() {
+        // Save preference to localStorage
+        localStorage.setItem('autoRefresh', this.checked ? 'true' : 'false');
+        
         if (this.checked) {
             // Check if manual refresh is available (cooldown period completed)
             const now = Date.now();
@@ -1926,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const now = Date.now();
         const timeLeft = Math.max(0, nextRefreshTime - now);
         
-        if (timeLeft === 0) {
+        if (timeLeft ===  0) {
             // If the timer reached zero, trigger a refresh immediately
             refreshBitcoinPrice();
             // Reset for next interval with exact REFRESH_INTERVAL value to ensure consistency
