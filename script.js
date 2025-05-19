@@ -1213,15 +1213,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Global variables to keep track of current sort state
+    let currentSortColumn = 'date';
+    let currentSortDirection = 'desc'; // Default sort is descending (newest first)
+    let sortListenersInitialized = false; // Flag to track if sort listeners have been initialized
+    // Keep track of transactions for re-sorting without full re-renders
+    let cachedTransactions = null;
+    
     function renderTransactionsTable(transactions, currentPrice) {
-        const tableBody = document.getElementById('transactions-table-body');
-        tableBody.innerHTML = '';
+        // Cache the transactions for re-sorting
+        cachedTransactions = transactions;
         
         // Filter out on-chain transactions if not included
         let displayTransactions = includeOnChain ? transactions : transactions.filter(tx => !tx.isOnChain);
         
-        // Sort transactions by date, most recent first
-        const sortedTransactions = [...displayTransactions].sort((a, b) => b.date - a.date);
+        // Apply current sort
+        const sortedTransactions = sortTransactions([...displayTransactions], currentSortColumn, currentSortDirection);
+        
+        // Initialize sort listeners only once
+        if (!sortListenersInitialized) {
+            setupTableSorting();
+            sortListenersInitialized = true;
+        }
+        
+        // Update the sort icons to reflect the current sort state
+        updateSortIcons(currentSortColumn, currentSortDirection);
+        
+        // Render the table content
+        renderTableRows(sortedTransactions, currentPrice);
+    }
+    
+    function renderTableRows(sortedTransactions, currentPrice) {
+        const tableBody = document.getElementById('transactions-table-body');
+        tableBody.innerHTML = '';
         
         sortedTransactions.forEach(tx => {
             const row = document.createElement('tr');
@@ -1232,12 +1256,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Use the pre-calculated values from the transaction data
-            // These values were calculated correctly in calculatePerformance
             const currentValue = tx.currentValue;
             const profitLoss = tx.profitLoss;
             const roi = tx.roi;
             
-            // Create table cells with special handling for on-chain transactions
             // Find the selected currency object for symbol display
             const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
                                { code: 'USD', symbol: '$' };
@@ -1284,6 +1306,131 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    function sortTransactions(transactions, column, direction) {
+        if (!transactions || transactions.length === 0) return [];
+        
+        // Create a new array to avoid mutating the original array
+        const sortableTransactions = [...transactions];
+        
+        return sortableTransactions.sort((a, b) => {
+            let valueA, valueB;
+            
+            // Define how to extract values for each column
+            switch (column) {
+                case 'date':
+                    valueA = new Date(a.date).getTime();
+                    valueB = new Date(b.date).getTime();
+                    break;
+                case 'btcAmount':
+                    valueA = parseFloat(a.btcAmount) || 0;
+                    valueB = parseFloat(b.btcAmount) || 0;
+                    break;
+                case 'price':
+                    // Handle on-chain transactions (which don't have exchange rates)
+                    valueA = a.isOnChain ? 0 : (parseFloat(a.exchangeRate) || 0);
+                    valueB = b.isOnChain ? 0 : (parseFloat(b.exchangeRate) || 0);
+                    break;
+                case 'invested':
+                    valueA = a.isOnChain ? 0 : (parseFloat(a.usdInvested) || 0);
+                    valueB = b.isOnChain ? 0 : (parseFloat(b.usdInvested) || 0);
+                    break;
+                case 'currentValue':
+                    valueA = parseFloat(a.currentValue) || 0;
+                    valueB = parseFloat(b.currentValue) || 0;
+                    break;
+                case 'profitLoss':
+                    valueA = a.isOnChain ? 0 : (parseFloat(a.profitLoss) || 0);
+                    valueB = b.isOnChain ? 0 : (parseFloat(b.profitLoss) || 0);
+                    break;
+                case 'roi':
+                    valueA = a.isOnChain ? 0 : (parseFloat(a.roi) || 0);
+                    valueB = b.isOnChain ? 0 : (parseFloat(b.roi) || 0);
+                    break;
+                default:
+                    // Default to date sort
+                    valueA = new Date(a.date).getTime();
+                    valueB = new Date(b.date).getTime();
+            }
+            
+            // Apply sort direction
+            if (direction === 'asc') {
+                return valueA - valueB;
+            } else {
+                return valueB - valueA;
+            }
+        });
+    }
+    
+    function setupTableSorting() {
+        const tableHeaders = document.querySelectorAll('th[data-sort]');
+        
+        tableHeaders.forEach(header => {
+            // Remove any existing event listeners by cloning and replacing the element
+            const clone = header.cloneNode(true);
+            header.parentNode.replaceChild(clone, header);
+            
+            clone.addEventListener('click', () => {
+                const column = clone.dataset.sort;
+                
+                // Toggle sort direction if clicking the same column
+                if (column === currentSortColumn) {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = column;
+                    // Default to descending for date, ascending for everything else when first clicked
+                    currentSortDirection = column === 'date' ? 'desc' : 'asc';
+                }
+                
+                // Update the icons in the table headers
+                updateSortIcons(currentSortColumn, currentSortDirection);
+                
+                // Only re-sort and re-render rows, not the entire table
+                if (cachedTransactions) {
+                    // Filter out on-chain transactions if not included
+                    const displayTransactions = includeOnChain ? 
+                        cachedTransactions : 
+                        cachedTransactions.filter(tx => !tx.isOnChain);
+                    
+                    // Apply the new sort
+                    const sortedTransactions = sortTransactions(
+                        [...displayTransactions], 
+                        currentSortColumn, 
+                        currentSortDirection
+                    );
+                    
+                    // Just update the table rows
+                    renderTableRows(sortedTransactions);
+                }
+            });
+        });
+        
+        // Set initial sort icons
+        updateSortIcons(currentSortColumn, currentSortDirection);
+    }
+    
+    function updateSortIcons(activeColumn, direction) {
+        const tableHeaders = document.querySelectorAll('th[data-sort]');
+        
+        tableHeaders.forEach(header => {
+            const icon = header.querySelector('i');
+            if (!icon) return;
+            
+            const column = header.dataset.sort;
+            
+            // Reset all icons first
+            icon.className = 'fas fa-sort ml-1';
+            
+            // Update the active column's icon
+            if (column === activeColumn) {
+                if (direction === 'asc') {
+                    icon.className = 'fas fa-sort-up ml-1';
+                } else {
+                    icon.className = 'fas fa-sort-down ml-1';
+                }
+            }
+        });
+    }
+    
     // Format a value directly in the selected currency without conversion
     // Used for values that are already in the selected currency
     function formatDirectAmount(value) {
@@ -1301,10 +1448,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function formatDate(date, includeTime = false) {
+        // Make sure date is a valid Date object
+        if (!(date instanceof Date) || isNaN(date.getTime())) {
+            try {
+                date = new Date(date);
+            } catch (e) {
+                return "Invalid Date";
+            }
+        }
+        
         const options = { 
             year: 'numeric', 
             month: 'short', 
-            day: 'numeric'
+            day: 'numeric',
+            timeZone: 'UTC'
         };
         
         if (includeTime) {
@@ -1314,7 +1471,21 @@ document.addEventListener('DOMContentLoaded', function() {
             options.hour12 = true;
         }
         
-        return new Intl.DateTimeFormat('en-US', options).format(date);
+        const formattedDate = new Intl.DateTimeFormat('en-US', options).format(date);
+        
+        // For transaction table dates, always include the time (for regular formatDate calls)
+        if (!includeTime) {
+            const timeOptions = {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'UTC',
+                hour12: true
+            };
+            const timeString = new Intl.DateTimeFormat('en-US', timeOptions).format(date);
+            return `${formattedDate}, ${timeString}`;
+        }
+        
+        return formattedDate;
     }
     
     function showLoading() {

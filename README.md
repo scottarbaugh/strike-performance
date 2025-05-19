@@ -35,21 +35,16 @@ A modern web application for analyzing the performance of your Bitcoin investmen
 
 3. Open your browser and navigate to:
    ```
-   http://localhost:8000
+   http://localhost:3000
    ```
+
+Note - the port number can be different (it will try several ports until it finds one that works).
 
 4. Upload your Strike Bitcoin account statement CSV file and analyze your performance.
 
 ## Data Privacy
 
-All analysis is performed client-side in your browser. No data is sent to any external servers except for fetching the current Bitcoin price from the CoinGecko API.
-
-## How to Export Your Strike Data
-
-1. Log in to your Strike account
-2. Navigate to the Account section
-3. Select "Export Transactions" or similar option
-4. Choose the date range and download the CSV file
+All analysis is performed client-side in your browser. No data is sent to any external servers except for fetching the current Bitcoin price and currency ratios.
 
 ## License
 

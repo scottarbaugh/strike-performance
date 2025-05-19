@@ -190,7 +190,7 @@ button:disabled {
   max-width: inherit;
 }
 
-/* Refresh button animation */
+/* Spinning animation for refresh button */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -243,6 +243,30 @@ button:disabled {
 /* Simple tooltip styling - we'll use the browser's native tooltip */
 .fa-info-circle {
   cursor: help;
+}
+
+/* Table sorting styles */
+th[data-sort] {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+th[data-sort]:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark th[data-sort]:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+th[data-sort] i {
+  opacity: 0.6;
+}
+
+th[data-sort]:hover i {
+  opacity: 1;
 }
 
 /* Responsive adjustments */
