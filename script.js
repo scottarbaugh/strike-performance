@@ -983,7 +983,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         type: 'time',
                         time: {
                             unit: 'month',
-                            tooltipFormat: 'MMM dd, yyyy'
+                            tooltipFormat: 'MMM dd yyyy HH:mm' // Remove comma between date and time
                         },
                         grid: {
                             display: false
@@ -1037,14 +1037,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (item.dataset.label === 'BTC Amount (On-Chain)' && item.raw) {
                                     // Use formattedDate or originalDate if available 
                                     if (item.raw.formattedDate) {
-                                        return item.raw.formattedDate;
+                                        // Remove comma between date and time
+                                        return item.raw.formattedDate.replace(', ', ' ');
                                     } else if (item.raw.originalDate) {
-                                        return formatDate(item.raw.originalDate, true);
+                                        return formatDate(item.raw.originalDate, true).replace(', ', ' ');
                                     }
                                 }
-                                
                                 // Default fallback
-                                return formatDate(date, true);
+                                return formatDate(date, true).replace(', ', ' ');
                             },
                             label: function(context) {
                                 let label = context.dataset.label || '';
@@ -1210,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         type: 'time',
                         time: {
                             unit: 'month',
-                            tooltipFormat: 'MMM dd, yyyy'
+                            tooltipFormat: 'MMM dd yyyy HH:mm' // Remove comma between date and time
                         },
                         grid: {
                             display: false
@@ -1241,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const date = new Date(item.parsed.x);
                                 
                                 // Default fallback
-                                return formatDate(date, true);
+                                return formatDate(date, true).replace(', ', ' ');
                             },
                             label: function(context) {
                                 let label = context.dataset.label || '';
@@ -1565,15 +1565,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // For transaction table dates, always include the time (for regular formatDate calls)
         if (!includeTime) {
             const timeOptions = {
-                hour: '2-digit',
+                hour: 'numeric', // Use numeric to avoid leading zero
                 minute: '2-digit',
                 timeZone: useLocalTime ? undefined : 'UTC',
                 hour12: true
             };
             const timeString = new Intl.DateTimeFormat('en-US', timeOptions).format(date);
-            return `${formattedDate}, ${timeString}`;
+            return `${formattedDate} ${timeString}`;
         }
-        
         return formattedDate;
     }
     
