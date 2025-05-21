@@ -471,6 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function calculatePerformance(data, currentPrice) {
+
         // Filter for completed exchange transactions
         const exchangeTransactions = data.filter(row => 
             row.Status === 'Completed' && 
@@ -478,17 +479,17 @@ document.addEventListener('DOMContentLoaded', function() {
             row['Transaction Type'] === 'Exchange'
         );
 
-        // Filter for completed on-chain and P2P transactions
-        const onChainLikeTransactions = data.filter(row => 
+        // Filter for completed non-exchange transactions (any type except Exchange)
+        const nonExchangeTransactions = data.filter(row => 
             row.Status === 'Completed' && 
             row.Currency === 'BTC' && 
-            (row['Transaction Type'] === 'On-Chain' || row['Transaction Type'] === 'P2P')
+            row['Transaction Type'] !== 'Exchange'
         );
 
-        // Combine transactions based on the toggle setting
+        // Combine transactions based on the toggle setting (on-chain toggle now means all non-exchange types)
         let transactions = exchangeTransactions;
-        if (includeOnChain && onChainLikeTransactions.length > 0) {
-            transactions = [...exchangeTransactions, ...onChainLikeTransactions];
+        if (includeOnChain && nonExchangeTransactions.length > 0) {
+            transactions = [...exchangeTransactions, ...nonExchangeTransactions];
         }
         
         if (transactions.length === 0) {
@@ -512,27 +513,28 @@ document.addEventListener('DOMContentLoaded', function() {
         // Process each transaction
         transactions.forEach((tx, index) => {
             const btcAmount = parseFloat(tx.Amount);
-            const isOnChainLike = tx['Transaction Type'] === 'On-Chain' || tx['Transaction Type'] === 'P2P';
+            const isExchange = tx['Transaction Type'] === 'Exchange';
+            const isNonExchange = !isExchange;
 
-            if (isOnChainLike) {
-                // On-chain and P2P transactions don't have an exchange rate
+            if (isNonExchange) {
+                // All non-exchange transactions (On-Chain, P2P, Foo, etc.)
                 onChainBtc += btcAmount;
                 cumulativeBtc += btcAmount;
 
-                // Calculate current value for on-chain-like transactions
-                const calculatedOnChainCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
+                // Calculate current value for non-exchange transactions
+                const calculatedNonExchangeCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
 
-                // Add to history with special on-chain-like flag
+                // Add to history with special non-exchange flag
                 purchaseHistory.push({
                     date: new Date(tx['Time (UTC)']),
                     btcAmount,
                     isOnChain: true,
-                    exchangeRate: 0, // No exchange rate for on-chain-like
-                    usdInvested: 0, // No USD invested for on-chain-like
+                    exchangeRate: 0, // No exchange rate for non-exchange
+                    usdInvested: 0, // No USD invested for non-exchange
                     cumulativeBtc,
-                    currentValue: calculatedOnChainCurrentValue,
-                    profitLoss: 0, // Can't calculate profit/loss for on-chain-like
-                    roi: 0, // Can't calculate ROI for on-chain-like
+                    currentValue: calculatedNonExchangeCurrentValue,
+                    profitLoss: 0, // Can't calculate profit/loss for non-exchange
+                    roi: 0, // Can't calculate ROI for non-exchange
                     // For table rendering
                     'Transaction Type': tx['Transaction Type'],
                     originalType: tx['Transaction Type']
@@ -614,12 +616,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         return {
-            totalBtc: totalBtcWithOnChain, // Total including on-chain if enabled
+            totalBtc: totalBtcWithOnChain, // Total including non-exchange if enabled
             exchangeOnlyBtc: totalBtc, // BTC from exchange transactions only
-            onChainBtc, // BTC from on-chain and P2P transactions
-            includesOnChain: includeOnChain && onChainLikeTransactions.length > 0,
+            onChainBtc, // BTC from non-exchange transactions
+            includesOnChain: includeOnChain && nonExchangeTransactions.length > 0,
             totalInvested,
-            currentValue: currentValueWithOnChain, // Current value including on-chain if enabled
+            currentValue: currentValueWithOnChain, // Current value including non-exchange if enabled
             exchangeOnlyValue: currentValue, // Value from exchange transactions only
             totalProfit,
             totalRoi,
@@ -629,7 +631,7 @@ document.addEventListener('DOMContentLoaded', function() {
             transactions: purchaseHistory,
             transactionCount: transactions.length,
             exchangeTransactionCount: exchangeCount,
-            onChainTransactionCount: onChainLikeTransactions.length,
+            onChainTransactionCount: nonExchangeTransactions.length,
             avgPurchaseAmount,
             bestPurchaseRate,
             bestPurchaseIndex,
