@@ -819,6 +819,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.getElementById('avg-purchase-price').textContent = avgPurchasePriceFormatted;
         
+
         // Get best purchase date from the transaction at bestPurchaseIndex (show only date, no time)
         const bestPurchaseDate = results.bestPurchaseIndex >= 0 && results.bestPurchaseIndex < results.transactions.length 
             ? formatDate(results.transactions[results.bestPurchaseIndex].date, false, false, true) 
@@ -828,9 +829,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('best-purchase').innerHTML = bestPurchaseRateFormatted + 
             (bestPurchaseDate ? ' <span class="text-xs text-gray-500 dark:text-gray-400">on ' + bestPurchaseDate + '</span>' : '');
 
-        // Show only date (no time) for first and latest purchase
-        document.getElementById('first-purchase-date').textContent = formatDate(new Date(results.firstPurchaseDate), false, false, true);
-        document.getElementById('latest-purchase-date').textContent = formatDate(new Date(results.latestPurchaseDate), false, false, true);
+        // Show only date (no time) for first and latest purchase, using only Exchange transactions
+        const exchangeTransactions = results.transactions.filter(tx => !tx.isOnChain);
+        let firstExchangeDate = '';
+        let latestExchangeDate = '';
+        if (exchangeTransactions.length > 0) {
+            // Sort by date ascending
+            const sorted = [...exchangeTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+            firstExchangeDate = formatDate(new Date(sorted[0].date), false, false, true);
+            latestExchangeDate = formatDate(new Date(sorted[sorted.length - 1].date), false, false, true);
+        }
+        document.getElementById('first-purchase-date').textContent = firstExchangeDate;
+        document.getElementById('latest-purchase-date').textContent = latestExchangeDate;
         
         // Show transaction breakdown if we have on-chain transactions
         if (results.onChainTransactionCount > 0) {
