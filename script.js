@@ -1347,28 +1347,26 @@ document.addEventListener('DOMContentLoaded', function() {
         
         sortedTransactions.forEach(tx => {
             const row = document.createElement('tr');
-            
-            // Mark on-chain and P2P transactions with a different style
+
+            // Mark non-exchange transactions with a different style
             if (tx.isOnChain) {
                 row.classList.add('bg-blue-50', 'dark:bg-blue-900', 'dark:bg-opacity-20');
+            } else if (tx['Transaction Type'] !== 'Exchange') {
+                row.classList.add('bg-blue-50', 'dark:bg-blue-900', 'dark:bg-opacity-20');
             }
-            
+
             // Use the pre-calculated values from the transaction data
             const currentValue = tx.currentValue;
             const profitLoss = tx.profitLoss;
             const roi = tx.roi;
-            
+
             // Find the selected currency object for symbol display
-            const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
-                               { code: 'USD', symbol: '$' };
-            
-            if (tx.isOnChain) {
-                // Non-Exchange and P2P transactions - use dashes for price at purchase, cost, profit/loss and ROI
-                // Show the type in the cell
-                let typeLabel = 'On-Chain Transaction';
-                if (tx['Transaction Type'] === 'P2P' || (tx.originalType && tx.originalType === 'P2P')) {
-                    typeLabel = 'P2P Transaction';
-                }
+            const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || { code: 'USD', symbol: '$' };
+
+            if (tx.isOnChain || tx['Transaction Type'] !== 'Exchange') {
+                // Non-Exchange, P2P, On-Chain, or any other type: use dashes for price at purchase, invested, profit/loss and ROI
+                // Show the type in the cell and in the price column
+                let typeLabel = `${tx['Transaction Type']} Transaction`;
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
@@ -1380,20 +1378,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             } else {
                 // Exchange transactions - show all values
-                const formattedExchangeRate = new Intl.NumberFormat('en-US', { 
-                    style: 'currency', 
+                const formattedExchangeRate = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
                     currency: currencyObj.code,
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }).format(tx.exchangeRate);
-                
-                const formattedUsdInvested = new Intl.NumberFormat('en-US', { 
-                    style: 'currency', 
+
+                const formattedUsdInvested = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
                     currency: currencyObj.code,
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }).format(tx.usdInvested);
-                
+
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
@@ -1404,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm ${roi >= 0 ? 'profit' : 'loss'}">${roi.toFixed(2)}%</td>
                 `;
             }
-            
+
             tableBody.appendChild(row);
         });
     }
