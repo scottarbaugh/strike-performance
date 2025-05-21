@@ -477,18 +477,18 @@ document.addEventListener('DOMContentLoaded', function() {
             row.Currency === 'BTC' && 
             row['Transaction Type'] === 'Exchange'
         );
-        
-        // Filter for completed on-chain transactions
-        const onChainTransactions = data.filter(row => 
+
+        // Filter for completed on-chain and P2P transactions
+        const onChainLikeTransactions = data.filter(row => 
             row.Status === 'Completed' && 
             row.Currency === 'BTC' && 
-            row['Transaction Type'] === 'On-Chain'
+            (row['Transaction Type'] === 'On-Chain' || row['Transaction Type'] === 'P2P')
         );
-        
+
         // Combine transactions based on the toggle setting
         let transactions = exchangeTransactions;
-        if (includeOnChain && onChainTransactions.length > 0) {
-            transactions = [...exchangeTransactions, ...onChainTransactions];
+        if (includeOnChain && onChainLikeTransactions.length > 0) {
+            transactions = [...exchangeTransactions, ...onChainLikeTransactions];
         }
         
         if (transactions.length === 0) {
@@ -512,52 +512,55 @@ document.addEventListener('DOMContentLoaded', function() {
         // Process each transaction
         transactions.forEach((tx, index) => {
             const btcAmount = parseFloat(tx.Amount);
-            const isOnChain = tx['Transaction Type'] === 'On-Chain';
-            
-            if (isOnChain) {
-                // On-chain transactions don't have an exchange rate
+            const isOnChainLike = tx['Transaction Type'] === 'On-Chain' || tx['Transaction Type'] === 'P2P';
+
+            if (isOnChainLike) {
+                // On-chain and P2P transactions don't have an exchange rate
                 onChainBtc += btcAmount;
                 cumulativeBtc += btcAmount;
-                
-                // Calculate current value for on-chain transactions
+
+                // Calculate current value for on-chain-like transactions
                 const calculatedOnChainCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
-                
-                // Add to history with special on-chain flag
+
+                // Add to history with special on-chain-like flag
                 purchaseHistory.push({
                     date: new Date(tx['Time (UTC)']),
                     btcAmount,
                     isOnChain: true,
-                    exchangeRate: 0, // No exchange rate for on-chain
-                    usdInvested: 0, // No USD invested for on-chain
+                    exchangeRate: 0, // No exchange rate for on-chain-like
+                    usdInvested: 0, // No USD invested for on-chain-like
                     cumulativeBtc,
                     currentValue: calculatedOnChainCurrentValue,
-                    profitLoss: 0, // Can't calculate profit/loss for on-chain
-                    roi: 0 // Can't calculate ROI for on-chain
+                    profitLoss: 0, // Can't calculate profit/loss for on-chain-like
+                    roi: 0, // Can't calculate ROI for on-chain-like
+                    // For table rendering
+                    'Transaction Type': tx['Transaction Type'],
+                    originalType: tx['Transaction Type']
                 });
             } else {
                 // Regular exchange transaction
                 const exchangeRate = parseFloat(tx['Exchange Rate']);
                 const usdInvested = btcAmount * exchangeRate;
-                
+
                 totalBtc += btcAmount;
                 totalInvested += usdInvested;
                 cumulativeBtc += btcAmount;
-                
+
                 // Track best purchase (lowest price) - only for exchange transactions
                 if (bestPurchaseIndex === -1 || exchangeRate < bestPurchaseRate) {
                     bestPurchaseRate = exchangeRate;
                     bestPurchaseIndex = index;
                 }
-                
+
                 // Calculate current value based on the BTC amount and current price
                 // The btcAmount is the actual amount of BTC, and currentBtcPriceInSelectedCurrency is already in the selected currency
                 const calculatedCurrentValue = btcAmount * currentBtcPriceInSelectedCurrency;
-                
+
                 // Calculate profit/loss and ROI
                 // usdInvested is actually in the selected currency (confusing variable name)
                 const calculatedProfitLoss = calculatedCurrentValue - usdInvested;
                 const calculatedROI = usdInvested > 0 ? (calculatedProfitLoss / usdInvested) * 100 : 0;
-                
+
                 // Build purchase history for charts
                 purchaseHistory.push({
                     date: new Date(tx['Time (UTC)']),
@@ -568,7 +571,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     cumulativeBtc,
                     currentValue: calculatedCurrentValue,
                     profitLoss: calculatedProfitLoss,
-                    roi: calculatedROI
+                    roi: calculatedROI,
+                    'Transaction Type': tx['Transaction Type'],
+                    originalType: tx['Transaction Type']
                 });
             }
         });
@@ -608,8 +613,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return {
             totalBtc: totalBtcWithOnChain, // Total including on-chain if enabled
             exchangeOnlyBtc: totalBtc, // BTC from exchange transactions only
-            onChainBtc, // BTC from on-chain transactions
-            includesOnChain: includeOnChain && onChainTransactions.length > 0,
+            onChainBtc, // BTC from on-chain and P2P transactions
+            includesOnChain: includeOnChain && onChainLikeTransactions.length > 0,
             totalInvested,
             currentValue: currentValueWithOnChain, // Current value including on-chain if enabled
             exchangeOnlyValue: currentValue, // Value from exchange transactions only
@@ -621,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function() {
             transactions: purchaseHistory,
             transactionCount: transactions.length,
             exchangeTransactionCount: exchangeCount,
-            onChainTransactionCount: onChainTransactions.length,
+            onChainTransactionCount: onChainLikeTransactions.length,
             avgPurchaseAmount,
             bestPurchaseRate,
             bestPurchaseIndex,
@@ -720,13 +725,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (results.onChainBtc > 0 && results.includesOnChain) {
             const exchangeOnly = results.exchangeOnlyBtc.toFixed(8);
             const onChainOnly = results.onChainBtc.toFixed(8);
-            
             // Show the breakdown directly instead of using a tooltip
             totalBtcElement.innerHTML = `
                 <span class="block ${excludeOnChainToggle && excludeOnChainToggle.checked ? 'text-4xl' : 'text-2xl'} font-bold">${results.totalBtc.toFixed(8)}</span>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     <div>Exchange: ${exchangeOnly}</div>
-                    <div>On-Chain: ${onChainOnly}</div>
+                    <div>Non-Exchange: ${onChainOnly}</div>
                 </div>
             `;
         }
@@ -758,13 +762,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (results.onChainBtc > 0 && results.includesOnChain) {
             const exchangeOnlyValue = formatDirectAmount(results.exchangeOnlyValue);
             const onChainValue = formatDirectAmount(results.currentValue - results.exchangeOnlyValue);
-            
             // Show the breakdown directly instead of using a tooltip
             currentValueElement.innerHTML = `
                 <span class="block ${excludeOnChainToggle && excludeOnChainToggle.checked ? 'text-4xl' : 'text-2xl'} font-bold">${formatDirectAmount(results.currentValue)}</span>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     <div>Exchange: ${exchangeOnlyValue}</div>
-                    <div>On-Chain: ${onChainValue}</div>
+                    <div>Non-Exchange: ${onChainValue}</div>
                 </div>
             `;
         }
@@ -831,9 +834,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show transaction breakdown if we have on-chain transactions
         if (results.onChainTransactionCount > 0) {
             const totalLabel = results.includesOnChain ? 
-                `${results.transactionCount} (${results.exchangeTransactionCount} Exchange, ${results.onChainTransactionCount} On-Chain)` :
-                `${results.exchangeTransactionCount} (${results.onChainTransactionCount} On-Chain excluded)`;
-            
+                `${results.transactionCount} (${results.exchangeTransactionCount} Exchange, ${results.onChainTransactionCount} Non-Exchange)` :
+                `${results.exchangeTransactionCount} (${results.onChainTransactionCount} Non-Exchange excluded)`;
             document.getElementById('total-purchases').textContent = totalLabel;
         } else {
             document.getElementById('total-purchases').textContent = results.transactionCount;
@@ -905,7 +907,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create datasets
         const datasets = [
             {
-                label: `BTC Price (Exchange) (${currencyObj.code})`,
+                label: `BTC Price (Exchange)`,
                 data: exchangeTxs.map(tx => ({
                     x: tx.date instanceof Date ? tx.date : new Date(tx.date),
                     y: tx.exchangeRate
@@ -931,13 +933,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         ];
         
-        // Add on-chain transactions dataset if we have any
+        // Add non-exchange transactions dataset if we have any
         if (onChainTxs.length > 0 && includeOnChain) {
             // Simplify the on-chain data structure to avoid potential issues
             const onChainData = onChainTxs.map(tx => {
                 // Ensure we're working with a proper Date object
                 const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                
                 return {
                     // Use the date as the x-axis value
                     x: txDate,
@@ -948,15 +949,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     formattedDate: formatDate(txDate, true)
                 };
             });
-            
             datasets.push({
-                label: 'BTC Amount (On-Chain)', 
+                label: 'BTC Amount (Non-Exchange)',
                 data: onChainData,
-                borderColor: 'rgb(16, 185, 129)', // Green color for on-chain
+                borderColor: 'rgb(16, 185, 129)', // Green color for non-exchange
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 borderWidth: 0, // No border to prevent connecting lines
                 showLine: false, // Don't connect the points with a line
-                pointStyle: 'triangle', // Different point style for on-chain
+                pointStyle: 'triangle', // Different point style for non-exchange
                 pointRadius: 8, // Larger point size for visibility
                 pointHoverRadius: 10,
                 pointBackgroundColor: 'rgb(16, 185, 129)',
@@ -1141,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Always show investment line
         datasets.push({
-            label: `Exchange-Only Investment (${currencyObj.code})`,
+            label: `Exchange-Only Investment`,
             data: labels.map((label, i) => ({
                 x: label,
                 y: cumulativeInvestment[i],
@@ -1158,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Always show exchange-only value line
         datasets.push({
-            label: `Exchange-Only Value (${currencyObj.code})`,
+            label: `Exchange-Only Value`,
             data: labels.map((label, i) => ({
                 x: label,
                 y: exchangeOnlyValues[i],
@@ -1176,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show on-chain value if we have any and it's enabled
         if (onChainTxs.length > 0 && includeOnChain) {
             datasets.push({
-                label: `Total Value (incl. On-Chain) (${currencyObj.code})`,
+                label: `Total Value (incl. all transactions)`,
                 data: labels.map((label, i) => ({
                     x: label,
                     y: portfolioValues[i],
@@ -1334,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sortedTransactions.forEach(tx => {
             const row = document.createElement('tr');
             
-            // Mark on-chain transactions with a different style
+            // Mark on-chain and P2P transactions with a different style
             if (tx.isOnChain) {
                 row.classList.add('bg-blue-50', 'dark:bg-blue-900', 'dark:bg-opacity-20');
             }
@@ -1349,11 +1349,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                { code: 'USD', symbol: '$' };
             
             if (tx.isOnChain) {
-                // On-chain transactions - use dashes for price at purchase, cost, profit/loss and ROI
+                // Non-Exchange and P2P transactions - use dashes for price at purchase, cost, profit/loss and ROI
+                // Show the type in the cell
+                let typeLabel = 'Non-Exchange Transfer';
+                if (tx['Transaction Type'] === 'P2P' || (tx.originalType && tx.originalType === 'P2P')) {
+                    typeLabel = 'P2P Transfer';
+                }
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${tx.btcAmount.toFixed(8)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 italic">On-Chain Transfer</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200 italic">${typeLabel}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDirectAmount(currentValue)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">—</td>
@@ -1696,41 +1701,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Use formatDirectAmount when values are already in the selected currency
     
     function updateCurrencyDisplay() {
-        // Find the selected currency object
-        const currencyObj = SUPPORTED_CURRENCIES.find(c => c.code === selectedCurrency) || 
-                           { code: 'USD', symbol: '$' };
-        
-        // Update all currency-related elements
-        const currencyLabels = document.querySelectorAll('.currency-label');
-        currencyLabels.forEach(label => {
-            label.textContent = currencyObj.code;
-        });
-        
-        // Update table headers for currency
-        const priceHeader = document.querySelector('th:nth-child(3)');
-        if (priceHeader) {
-            const currencyLabel = priceHeader.querySelector('.currency-label');
-            if (currencyLabel) {
-                currencyLabel.textContent = `(${currencyObj.code})`;
-            }
-        }
-        
-        const investedHeader = document.querySelector('th:nth-child(4)');
-        if (investedHeader) {
-            const currencyLabel = investedHeader.querySelector('.currency-label');
-            if (currencyLabel) {
-                currencyLabel.textContent = currencyObj.code;
-            }
-        }
-        
-        // Update charts if they exist
+        // No longer need to update or reference .currency-label elements
+        // Only update charts if they exist (titles already patched to not use currency code)
         if (window.purchaseChart) {
-            window.purchaseChart.options.scales.y.title.text = `Price (${currencyObj.code})`;
             window.purchaseChart.update();
         }
-        
         if (window.portfolioChart) {
-            window.portfolioChart.options.scales.y.title.text = `Value (${currencyObj.code})`;
             window.portfolioChart.update();
         }
     }
