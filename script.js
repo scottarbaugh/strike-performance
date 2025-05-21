@@ -605,7 +605,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Calculate DCA vs Lump Sum comparison (only if there are exchange transactions)
         let dcaVsLumpSumPerformance = 0;
         if (exchangeTransactions.length > 0) {
-            const lumpSumBtc = totalInvested / parseFloat(exchangeTransactions[0]['Exchange Rate']);
+            // Find the first Exchange transaction by date
+            const sortedExchange = [...exchangeTransactions].sort((a, b) => new Date(a['Time (UTC)']) - new Date(b['Time (UTC)']));
+            const firstExchange = sortedExchange[0];
+            const lumpSumBtc = totalInvested / parseFloat(firstExchange['Exchange Rate']);
             const lumpSumValue = lumpSumBtc * currentPrice;
             dcaVsLumpSumPerformance = lumpSumValue > 0 ? ((currentValue - lumpSumValue) / lumpSumValue) * 100 : 0;
         }
