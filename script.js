@@ -819,17 +819,18 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.getElementById('avg-purchase-price').textContent = avgPurchasePriceFormatted;
         
-        // Get best purchase date from the transaction at bestPurchaseIndex
+        // Get best purchase date from the transaction at bestPurchaseIndex (show only date, no time)
         const bestPurchaseDate = results.bestPurchaseIndex >= 0 && results.bestPurchaseIndex < results.transactions.length 
-            ? formatDate(results.transactions[results.bestPurchaseIndex].date) 
+            ? formatDate(results.transactions[results.bestPurchaseIndex].date, false, false, true) 
             : '';
-        
-        // Set best purchase price with date in parentheses
+
+        // Set best purchase price with date in parentheses (date only)
         document.getElementById('best-purchase').innerHTML = bestPurchaseRateFormatted + 
             (bestPurchaseDate ? ' <span class="text-xs text-gray-500 dark:text-gray-400">on ' + bestPurchaseDate + '</span>' : '');
-            
-        document.getElementById('first-purchase-date').textContent = formatDate(new Date(results.firstPurchaseDate));
-        document.getElementById('latest-purchase-date').textContent = formatDate(new Date(results.latestPurchaseDate));
+
+        // Show only date (no time) for first and latest purchase
+        document.getElementById('first-purchase-date').textContent = formatDate(new Date(results.firstPurchaseDate), false, false, true);
+        document.getElementById('latest-purchase-date').textContent = formatDate(new Date(results.latestPurchaseDate), false, false, true);
         
         // Show transaction breakdown if we have on-chain transactions
         if (results.onChainTransactionCount > 0) {
@@ -1351,9 +1352,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (tx.isOnChain) {
                 // Non-Exchange and P2P transactions - use dashes for price at purchase, cost, profit/loss and ROI
                 // Show the type in the cell
-                let typeLabel = 'Non-Exchange Transfer';
+                let typeLabel = 'On-Chain Transaction';
                 if (tx['Transaction Type'] === 'P2P' || (tx.originalType && tx.originalType === 'P2P')) {
-                    typeLabel = 'P2P Transfer';
+                    typeLabel = 'P2P Transaction';
                 }
                 row.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-200">${formatDate(tx.date)}</td>
@@ -1536,44 +1537,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }).format(value);
     }
     
-    function formatDate(date, includeTime = false, useLocalTime = false) {
-        // Make sure date is a valid Date object
-        if (!(date instanceof Date) || isNaN(date.getTime())) {
-            try {
-                date = new Date(date);
-            } catch (e) {
-                return "Invalid Date";
-            }
+// Add dateOnly parameter for date-only formatting
+function formatDate(date, includeTime = false, useLocalTime = false, dateOnly = false) {
+    // Make sure date is a valid Date object
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+        try {
+            date = new Date(date);
+        } catch (e) {
+            return "Invalid Date";
         }
-        
-        const options = { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric',
-            timeZone: useLocalTime ? undefined : 'UTC' // Use local timezone if requested
-        };
-        
-        if (includeTime) {
-            options.hour = '2-digit';
-            options.minute = '2-digit';
-            options.second = '2-digit';
-            options.hour12 = true;
-        }
-        
-        const formattedDate = new Intl.DateTimeFormat('en-US', options).format(date);
-        
-        // For transaction table dates, always include the time (for regular formatDate calls)
-        if (!includeTime) {
-            const timeOptions = {
-                hour: 'numeric', // Use numeric to avoid leading zero
-                minute: '2-digit',
-                timeZone: useLocalTime ? undefined : 'UTC',
-                hour12: true
-            };
-            const timeString = new Intl.DateTimeFormat('en-US', timeOptions).format(date);
-            return `${formattedDate} ${timeString}`;
-        }
-        return formattedDate;
+    }
+
+    if (dateOnly) {
+        // Return only the date in 'MMM dd, yyyy' format
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            timeZone: useLocalTime ? undefined : 'UTC'
+        });
+    }
+
+    const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        timeZone: useLocalTime ? undefined : 'UTC' // Use local timezone if requested
+    };
+    
+    if (includeTime) {
+        options.hour = '2-digit';
+        options.minute = '2-digit';
+        options.second = '2-digit';
+        options.hour12 = true;
+        return new Intl.DateTimeFormat('en-US', options).format(date);
+    }
+
+    // For transaction table dates, always include the time (for regular formatDate calls)
+    const formattedDate = new Intl.DateTimeFormat('en-US', options).format(date);
+    const timeOptions = {
+        hour: 'numeric', // Use numeric to avoid leading zero
+        minute: '2-digit',
+        timeZone: useLocalTime ? undefined : 'UTC',
+        hour12: true
+    };
+    const timeString = new Intl.DateTimeFormat('en-US', timeOptions).format(date);
+    return `${formattedDate} ${timeString}`;
     }
     
     function showLoading() {
